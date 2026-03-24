@@ -376,6 +376,12 @@ var CSV_URLS = {
   google: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQRlhITn9rPa816cD0V5rJc15nEh0Z6lrplx4Lzcm1C7byMwKrfMBTndO97sfYOVZV4uas_t-0e0K-Z/pub?gid=1451184214&single=true&output=csv'
 };
 
+var CSV_URLS_MINOXELL = {
+  nsa:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=688098510&single=true&output=csv',
+  meta: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1964641815&single=true&output=csv',
+  ngfa: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1678752996&single=true&output=csv'
+};
+
 var sheetsCache = {};
 
 function showLoading(on) {
@@ -524,33 +530,105 @@ function loadSkechers(callback) {
     });
 }
 
-// 스케쳐스 여부 판단
-function isSkechersBrand() {
-  return S.brand === 'skechers' || S.brand === 'all' ||
-    S.brand === 'hyper'; // all일 때도 포함되지만 나머지는 샘플
+// 공통 날짜별 집계 함수 (네이버SA/GFA/Meta 공용)
+function aggregateGeneric(rows) {
+  var byDate = {};
+  var COL_DATE = '일자';
+  var COL_COST = '총비용(vat-)';
+  var COL_IMPR = '노출수';
+  var COL_CLICK = '클릭수';
+  var COL_CONV = '구매완료 전환수';
+  var COL_REV  = '구매완료 매출액';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
+    if (!dateStr) continue;
+    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
+    byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
+    byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
+    byDate[dateStr].conversions += Number(r[COL_CONV])  || 0;
+    byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
+  }
+  return byDate;
 }
 
-// render 오버라이드: 스케쳐스 관련 브랜드면 API 호출
+function loadMinoxell(callback) {
+  if (sheetsCache.minoxell) { callback(sheetsCache.minoxell); return; }
+  showLoading(true);
+
+  Promise.all([
+    fetch(CSV_URLS_MINOXELL.nsa).then(function(r){ return r.text(); }),
+    fetch(CSV_URLS_MINOXELL.meta).then(function(r){ return r.text(); }),
+    fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); })
+  ])
+  .then(function(results) {
+    var parsed = {
+      nsa:  aggregateGeneric(parseCSV(results[0])),
+      meta: aggregateGeneric(parseCSV(results[1])),
+      ngfa: aggregateGeneric(parseCSV(results[2]))
+    };
+    sheetsCache.minoxell = parsed;
+    showLoading(false);
+    callback(parsed);
+  })
+  .catch(function(err) {
+    showLoading(false);
+    console.error('마이녹셀 Sheets 로드 실패:', err);
+    callback(null);
+  });
+}
+
+// render 오버라이드: 실제 데이터 브랜드면 API 호출
 function renderWithData() {
-  var needsSheets = (S.brand === 'skechers' || S.brand === 'all');
-  if (!needsSheets) { render(); return; }
+  var needsSkechers = (S.brand === 'skechers' || S.brand === 'all');
+  var needsMinoxell = (S.brand === 'minoxell' || S.brand === 'all');
 
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo   = document.getElementById('dateTo').value;
 
-  loadSkechers(function(apiData) {
+  function applyMinoxell(apiData) {
     if (apiData) {
-      // RAW에 실제 데이터 주입
+      RAW.minoxell = {
+        meta:   sumByDateRange(apiData.meta,  dateFrom, dateTo),
+        nsa:    sumByDateRange(apiData.nsa,   dateFrom, dateTo),
+        ngfa:   sumByDateRange(apiData.ngfa,  dateFrom, dateTo)
+      };
+      var prevRange = getPrevRange(dateFrom, dateTo);
+      PREV.minoxell = {
+        meta:   sumByDateRange(apiData.meta,  prevRange.from, prevRange.to),
+        nsa:    sumByDateRange(apiData.nsa,   prevRange.from, prevRange.to),
+        ngfa:   sumByDateRange(apiData.ngfa,  prevRange.from, prevRange.to)
+      };
+    }
+  }
+
+  function applySkechers(apiData) {
+    if (apiData) {
       var built = buildSkechersRaw(apiData, dateFrom, dateTo);
       RAW.skechers_official = built.skechers_official;
       RAW.skechers_app      = built.skechers_app;
-      // PREV도 실제 전기 데이터로
       var prev = buildSkechersPrev(apiData, dateFrom, dateTo);
       PREV.skechers_official = prev.skechers_official;
       PREV.skechers_app      = prev.skechers_app;
     }
-    render();
-  });
+  }
+
+  if (!needsSkechers && !needsMinoxell) { render(); return; }
+
+  var tasks = [];
+  if (needsSkechers) tasks.push(new Promise(function(res) { loadSkechers(function(d){ applySkechers(d); res(); }); }));
+  if (needsMinoxell) tasks.push(new Promise(function(res) { loadMinoxell(function(d){ applyMinoxell(d); res(); }); }));
+
+  Promise.all(tasks).then(function() { render(); });
+}
+
+function getPrevRange(dateFrom, dateTo) {
+  var f = new Date(dateFrom), t = new Date(dateTo);
+  var diff = t - f;
+  var prevTo   = new Date(f - 1);
+  var prevFrom = new Date(f - diff - 86400000);
+  return { from: prevFrom.toISOString().slice(0,10), to: prevTo.toISOString().slice(0,10) };
 }
 
 var PREV = {};
@@ -1248,7 +1326,7 @@ function setThisMonth(btn) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
   renderWithData();
 }
 
@@ -1264,7 +1342,7 @@ function setLastMonth(btn) {
   document.getElementById('dateTo').value   = lastOfLastMonth.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
   renderWithData();
 }
 
@@ -1309,7 +1387,7 @@ function setLastWeek(btn) {
   document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
   renderWithData();
 }
 
@@ -1324,7 +1402,7 @@ function setYesterday(btn) {
   document.getElementById('dateTo').value   = d;
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
   renderWithData();
 }
 
@@ -1339,7 +1417,7 @@ function setPreset(btn, days) {
   document.getElementById('dateTo').value   = to.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
 
@@ -1348,7 +1426,7 @@ function applyRange() {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
 
@@ -1584,8 +1662,11 @@ function renderBudgetSection() {
     });
   }
 
-  if (!sheetsCache.skechers) {
-    loadSkechers(function() { doRender(); });
+  if (!sheetsCache.skechers || !sheetsCache.minoxell) {
+    var pending = 0;
+    function checkDone() { pending--; if (pending === 0) doRender(); }
+    if (!sheetsCache.skechers) { pending++; loadSkechers(function(){ checkDone(); }); }
+    if (!sheetsCache.minoxell) { pending++; loadMinoxell(function(){ checkDone(); }); }
   } else {
     doRender();
   }
