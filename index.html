@@ -1461,7 +1461,7 @@ function parseBudgetNum(str) {
 // 시트 브랜드명 + 매체명 → 대시보드 키 매핑 테이블
 var BUDGET_MAP = [
   {sheetBrand:'스케쳐스',         sheetCh:'SA',               brand:'skechers_official', ch:'nsa'},
-  {sheetBrand:'스케쳐스',         sheetCh:'구글 (자사몰)',      brand:'skechers_official', ch:'google'},
+  {sheetBrand:'스케쳐스',         sheetCh:'구글 (공식몰)',      brand:'skechers_official', ch:'google'},
   {sheetBrand:'스케쳐스',         sheetCh:'구글 (앱설치)',      brand:'skechers_app',      ch:'google'},
   {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검',           brand:'kitchenaid',        ch:'nsa'},
   {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검(코드리스)', brand:'kitchenaid',        ch:'nsa'},
@@ -1500,7 +1500,16 @@ function parseBudgetCSV(text) {
   var lines = cleaned.trim().split('\n');
   if (lines.length < 2) return {};
 
-  var headers = splitCSVLine(lines[0]);
+  // 행 전체가 따옴표로 감싸진 경우 벗겨내기
+  function unwrapRow(line) {
+    var s = line.trim();
+    if (s.charAt(0) === '"' && s.charAt(s.length-1) === '"') {
+      s = s.slice(1, s.length-1).replace(/""/g, '"');
+    }
+    return s;
+  }
+
+  var headers = splitCSVLine(unwrapRow(lines[0]));
   var iBrand  = headers.indexOf('브랜드');
   var iCh     = headers.indexOf('매체');
   var iBudget = headers.indexOf('예산');
@@ -1513,7 +1522,7 @@ function parseBudgetCSV(text) {
   var lastBrand = '';
 
   for (var i = 1; i < lines.length; i++) {
-    var cols = splitCSVLine(lines[i]);
+    var cols = splitCSVLine(unwrapRow(lines[i]));
     var rawBrand = (cols[iBrand] || '').trim();
 
     // 유효한 브랜드명이면 업데이트, 소계/기타면 lastBrand 유지
