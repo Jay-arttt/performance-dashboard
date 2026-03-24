@@ -1690,7 +1690,7 @@ function _renderBudgetBars(ym, budgets) {
     // 헤더
     html += '<tr>';
     for (var h = 0; h < heads.length; h++) {
-      html += '<th style="padding:7px 12px;text-align:' + (h < 2 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
+      html += '<th style="padding:10px 16px;text-align:' + (h < 2 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
     }
     html += '</tr>';
 
@@ -1723,19 +1723,19 @@ function _renderBudgetBars(ym, budgets) {
       }
 
       html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:8px 12px;color:var(--text);white-space:nowrap">' + (showBrand ? r.brand : '') + '</td>';
-      html += '<td style="padding:8px 12px;color:var(--text);opacity:.7;white-space:nowrap">' + r.ch + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:var(--text)">₩' + budget.toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:var(--text);opacity:.75">₩' + plan.toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:11px 16px;color:var(--text);white-space:nowrap">' + (showBrand ? r.brand : '') + '</td>';
+      html += '<td style="padding:11px 16px;color:var(--text);opacity:.7;white-space:nowrap">' + r.ch + '</td>';
+      html += '<td style="padding:11px 16px;text-align:right;color:var(--text)">₩' + budget.toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:11px 16px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:11px 16px;text-align:right;color:var(--text);opacity:.75">₩' + plan.toLocaleString('ko-KR') + '</td>';
       // 소진율: 배경 채우기
-      html += '<td style="padding:4px 12px;text-align:right">';
+      html += '<td style="padding:7px 16px;text-align:right">';
       html += '<div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3)">';
       html += '<div style="position:absolute;left:0;top:0;height:100%;width:' + fillWidth + '%;background:' + fillColor + ';opacity:.25;border-radius:4px"></div>';
       html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-weight:500;color:' + fillColor + '">' + pctVal.toFixed(1) + '%</div>';
       html += '</div></td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:' + (remain < 0 ? 'var(--down)' : 'var(--text)') + '">₩' + Math.round(remain).toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:' + (dailyGoal < 0 ? 'var(--down)' : 'var(--text)') + '">' + (remainDays > 0 ? '₩' + dailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
+      html += '<td style="padding:11px 16px;text-align:right;color:' + (remain < 0 ? 'var(--down)' : 'var(--text)') + '">₩' + Math.round(remain).toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:11px 16px;text-align:right;color:' + (dailyGoal < 0 ? 'var(--down)' : 'var(--text)') + '">' + (remainDays > 0 ? '₩' + dailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
       html += '</tr>';
     }
     html += '</table></div>';
