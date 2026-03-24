@@ -216,7 +216,7 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
     <button class="tab active" data-brand="all" onclick="setBrand(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
     <button class="tab" data-brand="skechers" onclick="setBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
     <button class="tab" data-brand="mynoxcel" onclick="setBrand(this)"><span class="dot" style="background:#ea580c"></span>마이녹셀</button>
-    <button class="tab" data-brand="careerbut" onclick="setBrand(this)"><span class="dot" style="background:#ca8a04"></span>커리어벗</button>
+    <button class="tab" data-brand="careerbud" onclick="setBrand(this)"><span class="dot" style="background:#ca8a04"></span>커리어벗</button>
     <button class="tab" data-brand="hyper" onclick="setBrand(this)"><span class="dot" style="background:var(--hyper)"></span>하이퍼</button>
   </div>
 </div>
@@ -319,7 +319,7 @@ var RAW = {
     ngfa:   {cost:480000,  revenue:1680000,  clicks:4000,  impressions:220000,  conversions:120},
     nsa:    {cost:560000,  revenue:2520000,  clicks:6200,  impressions:134000,  conversions:186}
   },
-  careerbut:  {
+  careerbud:  {
     meta:   {cost:760000,  revenue:3040000,  clicks:6100,  impressions:200000,  conversions:183},
     google: {cost:580000,  revenue:1914000,  clicks:3900,  impressions:155000,  conversions:117},
     ngfa:   {cost:340000,  revenue:1190000,  clicks:2800,  impressions:160000,  conversions:84},
@@ -551,7 +551,7 @@ var PREV = {};
 
 var HYPER_SUBS    = ['kitchenaid', 'ecovacs', 'anova'];
 var SKECHERS_SUBS = ['skechers_official', 'skechers_app'];
-var ALL_BRANDS = ['skechers_official', 'skechers_app', 'mynoxcel', 'careerbut', 'kitchenaid', 'ecovacs', 'anova'];
+var ALL_BRANDS = ['skechers_official', 'skechers_app', 'mynoxcel', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
 var CHS = ['meta', 'google', 'ngfa', 'nsa'];
 var CH_NAME  = {meta: 'Meta', google: 'Google Ads', ngfa: '네이버 GFA', nsa: '네이버 SA'};
 var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)'};
@@ -925,7 +925,7 @@ function hideTip() {
 
 function renderRoasCvr(cm, ck) {
   var brand = getActiveBrand();
-  var isCareer = brand === 'careerbut';
+  var isCareer = brand === 'careerbud';
   var roasSection = document.querySelector('.roas-section');
   // ROAS 카드 숨김/표시
   var roasCard = document.getElementById('roasCard');
@@ -1022,7 +1022,7 @@ function toggleCol(key) {
 
 // 브랜드별 컬럼/레이블 오버라이드
 var BRAND_OVERRIDES = {
-  careerbut: {
+  careerbud: {
     excludeCols: ['revenue', 'roas'],
     labelOverrides: {conversions: '회원가입', cpa: 'CPA', cvr: 'CVR'},
     kpiOrder: ['cost', 'conversions', 'cvr', 'cpa', 'clicks', 'ctr', 'cpc', 'impressions', 'cpm']
@@ -1033,7 +1033,7 @@ var BRAND_OVERRIDES = {
 };
 
 function getActiveBrand() {
-  if (S.brand === 'careerbut') return 'careerbut';
+  if (S.brand === 'careerbud') return 'careerbud';
   if (S.brand === 'skechers' && S.sub === 'skechers_app') return 'skechers_app';
   return null;
 }
@@ -1308,21 +1308,61 @@ function getYearMonth(dateStr) {
   return dateStr ? dateStr.slice(0, 7) : '';
 }
 
+// 시트 브랜드명 + 매체명 → 대시보드 키 매핑 테이블
+var BUDGET_MAP = [
+  {sheetBrand:'스케쳐스',         sheetCh:'SA',               brand:'skechers_official', ch:'nsa'},
+  {sheetBrand:'스케쳐스',         sheetCh:'구글 (자사몰)',      brand:'skechers_official', ch:'google'},
+  {sheetBrand:'스케쳐스',         sheetCh:'구글 (앱설치)',      brand:'skechers_app',      ch:'google'},
+  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검',           brand:'kitchenaid',        ch:'nsa'},
+  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검(코드리스)', brand:'kitchenaid',        ch:'nsa'},
+  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA_파링',           brand:'kitchenaid',        ch:'nsa'},
+  {sheetBrand:'하이퍼_키친에이드', sheetCh:'GFA',               brand:'kitchenaid',        ch:'ngfa'},
+  {sheetBrand:'하이퍼_키친에이드', sheetCh:'GFA_애드',          brand:'kitchenaid',        ch:'ngfa'},
+  {sheetBrand:'하이퍼_에코백스',   sheetCh:'SA',               brand:'ecovacs',           ch:'nsa'},
+  {sheetBrand:'하이퍼_에코백스',   sheetCh:'GFA_일반',          brand:'ecovacs',           ch:'ngfa'},
+  {sheetBrand:'하이퍼_에코백스',   sheetCh:'GFA_애드부스트',    brand:'ecovacs',           ch:'ngfa'},
+  {sheetBrand:'하이퍼_아노바',     sheetCh:'SA',               brand:'anova',             ch:'nsa'},
+  {sheetBrand:'하이퍼_아노바',     sheetCh:'GFA_애드',          brand:'anova',             ch:'ngfa'},
+  {sheetBrand:'커리어벗',          sheetCh:'구글',              brand:'careerbud',         ch:'google'},
+  {sheetBrand:'커리어벗',          sheetCh:'메타',              brand:'careerbud',         ch:'meta'},
+  {sheetBrand:'현대약품',          sheetCh:'네이버 SA',         brand:'mynoxcel',          ch:'nsa'},
+  {sheetBrand:'현대약품',          sheetCh:'네이버 GFA',        brand:'mynoxcel',          ch:'ngfa'},
+  {sheetBrand:'현대약품',          sheetCh:'메타',              brand:'mynoxcel',          ch:'meta'}
+];
+
 // CSV에서 예산 데이터 파싱 → { 'brandKey__chKey': 월예산 }
 function parseBudgetCSV(text) {
   var lines = text.trim().split('\n');
   if (lines.length < 2) return {};
+
   var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
-  var iBrand = headers.indexOf('브랜드');
-  var iCh    = headers.indexOf('매체');
-  var iBudget= headers.indexOf('예산');
+  var iBrand  = headers.indexOf('브랜드');
+  var iCh     = headers.indexOf('매체');
+  var iBudget = headers.indexOf('예산');
   if (iBrand < 0 || iCh < 0 || iBudget < 0) return {};
+
   var out = {};
+  var lastBrand = '';
+
   for (var i = 1; i < lines.length; i++) {
-    var cols = lines[i].split(',').map(function(c){ return c.trim().replace(/^"|"$/g,''); });
-    if (!cols[iBrand]) continue;
-    var key = cols[iBrand] + '__' + cols[iCh];
-    out[key] = Number(cols[iBudget].replace(/,/g,'')) || 0;
+    var cols = lines[i].split(',').map(function(c){ return c.trim().replace(/^"|"$/g,'').replace(/₩/g,'').replace(/\s/g,''); });
+    // 브랜드 빈칸이면 위 행 브랜드 이어받기
+    if (cols[iBrand]) lastBrand = cols[iBrand];
+    var sheetBrand = lastBrand;
+    var sheetCh    = cols[iCh] || '';
+    var rawBudget  = (cols[iBudget] || '').replace(/,/g,'').replace(/[^0-9]/g,'');
+    var budget     = Number(rawBudget) || 0;
+    if (!budget) continue;
+
+    // 매핑 테이블에서 찾기
+    for (var m = 0; m < BUDGET_MAP.length; m++) {
+      var rule = BUDGET_MAP[m];
+      if (rule.sheetBrand === sheetBrand && rule.sheetCh === sheetCh) {
+        var key = rule.brand + '__' + rule.ch;
+        out[key] = (out[key] || 0) + budget; // 같은 키 여러 행이면 합산
+        break;
+      }
+    }
   }
   return out;
 }
@@ -1358,7 +1398,7 @@ function renderBudgetSection() {
       {key:'skechers_official', label:'스케쳐스 공식몰'},
       {key:'skechers_app',      label:'스케쳐스 앱'},
       {key:'mynoxcel',          label:'마이녹셀'},
-      {key:'careerbut',         label:'커리어벗'},
+      {key:'careerbud',         label:'커리어벗'},
       {key:'kitchenaid',        label:'키친에이드'},
       {key:'ecovacs',           label:'에코백스'},
       {key:'anova',             label:'아노바'}
