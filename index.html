@@ -1000,10 +1000,7 @@ function renderChart(cm, ck) {
   function fmtAxis(v, type) {
     if (type === 'pct') return (v * 100).toFixed(1) + '%';
     if (type === 'roas') return (v * 100).toFixed(0) + '%';
-    if (v >= 1000000) return '₩' + (v/1000000).toFixed(1) + 'M';
-    if (v >= 10000)   return '₩' + Math.round(v/10000) + '만';
-    if (v >= 1000)    return '₩' + (v/1000).toFixed(0) + 'K';
-    return v.toLocaleString('ko-KR');
+    return Math.round(v).toLocaleString('ko-KR');
   }
 
   var svg = '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible;display:block">';
@@ -1019,13 +1016,13 @@ function renderChart(cm, ck) {
     if (lRange) {
       var lVal = ratio * lMax;
       var lType = leftSeries.length ? leftSeries[0].meta.type : 'num';
-      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(255,255,255,0.35)">' + fmtAxis(lVal, lType) + '</text>';
+      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(255,255,255,0.35);font-size:7px">' + fmtAxis(lVal, lType) + '</text>';
     }
     // 오른쪽 Y축
     if (rRange) {
       var rVal = ratio * rMax;
       var rType = rightSeries.length ? rightSeries[0].meta.type : 'pct';
-      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(255,255,255,0.35)">' + fmtAxis(rVal, rType) + '</text>';
+      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(255,255,255,0.35);font-size:7px">' + fmtAxis(rVal, rType) + '</text>';
     }
   }
   svg += '</g>';
@@ -1058,7 +1055,7 @@ function renderChart(cm, ck) {
       var cpx = (x0 + x1) / 2;
       lD += ' C ' + cpx + ' ' + y0 + ' ' + cpx + ' ' + y1 + ' ' + x1 + ' ' + y1;
     }
-    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>';
 
     // Dots (날짜 많으면 점 숨김)
     var showDots = N <= 31;
