@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>매체 성과 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0e0f11;
+  --bg2: #16181c;
+  --bg3: #1e2026;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e8e6e0;
+  --muted: #6b6a65;
+  --meta: #4f8ef7;
+  --google: #f4a044;
+  --ngfa: #03c75a;
+  --nsa: #00b4d8;
+  --hyper: #a78bfa;
+  --up: #6ddf9a;
+  --down: #f06060;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px; }
+
+/* Header */
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
+.header h1 { font-family: 'Instrument Serif', serif; font-size: 26px; font-weight: 400; letter-spacing: -0.3px; }
+.header p { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.date-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.preset-group { display: flex; gap: 4px; }
+.date-btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 13px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+.date-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.date-btn:hover:not(.active) { color: var(--text); border-color: var(--text); }
+.date-input-wrap { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 5px 10px; }
+.date-input-wrap input[type=date] { font-family: 'DM Mono', monospace; font-size: 11px; border: none; background: transparent; color: var(--text); outline: none; cursor: pointer; color-scheme: dark; }
+.date-sep { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+.apply-btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 12px; border-radius: 6px; border: none; background: var(--text); color: var(--bg); cursor: pointer; }
+.apply-btn:hover { opacity: .75; }
+
+/* Filters */
+.filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; min-width: 36px; }
+.tab-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { display: flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.tab .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tab:hover:not(.active) { color: var(--text); border-color: var(--text); }
+.subbrand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 14px; background: rgba(167,139,250,.07); border: 1px solid rgba(167,139,250,.18); border-radius: 10px; flex-wrap: wrap; }
+.subbrand-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--hyper); letter-spacing: 1px; text-transform: uppercase; margin-right: 4px; }
+.sub-tab { padding: 5px 13px; border-radius: 6px; border: 1px solid rgba(167,139,250,.3); background: transparent; color: var(--hyper); font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+.sub-tab.active { background: var(--hyper); color: var(--bg); border-color: var(--hyper); }
+.sub-tab:hover:not(.active) { background: rgba(167,139,250,.12); }
+
+/* KPI grid */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+.kpi-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; transition: border-color .15s; }
+.kpi-card:hover { border-color: var(--border2); }
+.kpi-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; line-height: 1; }
+.kpi-sub { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 11px; color: var(--muted); }
+.badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.badge.up { background: rgba(109,223,154,.12); color: var(--up); }
+.badge.down { background: rgba(240,96,96,.12); color: var(--down); }
+
+/* Section title */
+.section-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+
+/* Breakdown */
+.breakdown-grid { display: grid; gap: 10px; margin-bottom: 20px; }
+.ch-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
+.ch-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.ch-card[data-ch="meta"]::before { background: var(--meta); }
+.ch-card[data-ch="google"]::before { background: var(--google); }
+.ch-card[data-ch="ngfa"]::before { background: var(--ngfa); }
+.ch-card[data-ch="nsa"]::before { background: var(--nsa); }
+.ch-name { font-size: 12px; font-weight: 500; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+.ch-name .dot { width: 6px; height: 6px; border-radius: 50%; }
+.ch-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ch-metric-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 3px; }
+.ch-metric-value { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; }
+
+/* Chart section */
+.chart-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-bottom: 20px; position: relative; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.chart-title { font-size: 13px; font-weight: 500; }
+.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Metric selector */
+.metric-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.metric-btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+.metric-btn:hover:not(.m-disabled) { color: var(--text); }
+.metric-btn.m-selected { color: var(--text); }
+.metric-btn.m-disabled { opacity: .3; cursor: not-allowed; }
+.mbullet { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; opacity: .5; }
+.metric-btn.m-selected .mbullet { opacity: 1; }
+.metric-hint { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 14px; }
+
+/* SVG line chart */
+.lc-grid line { stroke: rgba(255,255,255,.05); stroke-width: 1; }
+.lc-axis-text { font-family: 'DM Mono', monospace; font-size: 10px; fill: var(--muted); }
+.lc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.lc-dot { stroke-width: 2; cursor: pointer; }
+
+/* Tooltip */
+.tip { position: absolute; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 11px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); pointer-events: none; opacity: 0; transition: opacity .12s; white-space: nowrap; z-index: 20; }
+
+/* ROAS section */
+.roas-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.roas-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+.roas-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.roas-row:last-child { margin-bottom: 0; }
+.roas-ch { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); width: 52px; flex-shrink: 0; }
+.roas-bar-wrap { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.roas-bar-fill { height: 100%; border-radius: 3px; transition: width .7s; }
+.roas-val { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; width: 44px; text-align: right; flex-shrink: 0; }
+
+/* Table */
+.table-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.table-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
+table { width: 100%; border-collapse: collapse; }
+thead th { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; padding: 9px 14px; text-align: center; border-bottom: 1px solid var(--border); font-weight: 700; background: var(--bg3); transition: color .12s; }
+thead th:first-child { text-align: center; }
+thead th:hover:not(:first-child) { color: var(--text); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg3); }
+tbody td { padding: 11px 14px; text-align: right; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: var(--text); }
+.ch-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.ch-pill.meta   { background: rgba(79,142,247,.15);  color: var(--meta); }
+.ch-pill.google { background: rgba(244,160,68,.15);  color: var(--google); }
+.ch-pill.ngfa   { background: rgba(3,199,90,.15);    color: var(--ngfa); }
+.ch-pill.nsa    { background: rgba(0,180,216,.15);   color: var(--nsa); }
+
+/* Column dropdown */
+.col-dropdown-btn { font-family:'DM Mono',monospace; font-size:11px; padding:5px 12px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text); cursor:pointer; display:flex; align-items:center; gap:2px; white-space:nowrap; }
+.col-dropdown-btn:hover { border-color:var(--text); }
+.col-dropdown { position:absolute; right:0; top:calc(100% + 6px); background:var(--bg2); border:1px solid var(--border2); border-radius:10px; padding:8px; z-index:100; min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+.col-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; cursor:pointer; font-family:'DM Mono',monospace; font-size:12px; color:var(--text); transition:background .1s; white-space:nowrap; }
+.col-item:hover { background:var(--bg3); }
+.col-check { width:14px; height:14px; border-radius:3px; border:1px solid var(--border2); background:transparent; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .12s; }
+.col-item.col-active .col-check { background:var(--text); border-color:var(--text); }
+.col-item.col-active .col-check::after { content:''; display:block; width:8px; height:5px; border-left:1.5px solid var(--bg); border-bottom:1.5px solid var(--bg); transform:rotate(-45deg) translate(1px,-1px); }
+.col-item.col-disabled { opacity: .4; cursor: not-allowed; }
+.col-item.col-disabled .col-check { opacity: .3; }
+
+.kpi-card { animation: fadeUp .35s ease both; }
+.kpi-card:nth-child(1){animation-delay:.03s} .kpi-card:nth-child(2){animation-delay:.06s}
+.kpi-card:nth-child(3){animation-delay:.09s} .kpi-card:nth-child(4){animation-delay:.12s}
+.kpi-card:nth-child(5){animation-delay:.15s} .kpi-card:nth-child(6){animation-delay:.18s}
+.kpi-card:nth-child(7){animation-delay:.21s} .kpi-card:nth-child(8){animation-delay:.24s}
+.kpi-card:nth-child(9){animation-delay:.27s} .kpi-card:nth-child(10){animation-delay:.30s}
+.kpi-card:nth-child(11){animation-delay:.33s}
+</style>
+</head>
+<body>
+
+<div id="loadingBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:var(--bg2);border-bottom:1px solid var(--border2);padding:10px 32px;align-items:center;gap:10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">
+  <div style="width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+  시트에서 데이터 불러오는 중...
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<div class="header">
+  <div>
+    <h1>매체 성과 대시보드</h1>
+    <p id="rangeLabel">2026.02.22 — 2026.03.24</p>
+  </div>
+  <div class="date-controls">
+    <div class="preset-group">
+      <button class="date-btn" onclick="setPreset(this,7)">7일</button>
+      <button class="date-btn active" onclick="setPreset(this,30)">30일</button>
+      <button class="date-btn" onclick="setPreset(this,90)">90일</button>
+    </div>
+    <div class="date-input-wrap">
+      <input type="date" id="dateFrom" value="2026-02-22">
+      <span class="date-sep">—</span>
+      <input type="date" id="dateTo" value="2026-03-24">
+    </div>
+    <button class="apply-btn" onclick="applyRange()">적용</button>
+  </div>
+</div>
+
+<div class="filter-row">
+  <span class="filter-label">브랜드</span>
+  <div class="tab-group" id="brandTabs">
+    <button class="tab active" data-brand="all" onclick="setBrand(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
+    <button class="tab" data-brand="skechers" onclick="setBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
+    <button class="tab" data-brand="mynoxcel" onclick="setBrand(this)"><span class="dot" style="background:#ea580c"></span>마이녹셀</button>
+    <button class="tab" data-brand="careerbut" onclick="setBrand(this)"><span class="dot" style="background:#ca8a04"></span>커리어벗</button>
+    <button class="tab" data-brand="hyper" onclick="setBrand(this)"><span class="dot" style="background:var(--hyper)"></span>하이퍼</button>
+  </div>
+</div>
+
+<div class="subbrand-row" id="subRowSkechers" style="display:none">
+  <span class="subbrand-label">스케쳐스 하위</span>
+  <button class="sub-tab active" data-sub="all" onclick="setSub(this,'skechers')">전체</button>
+  <button class="sub-tab" data-sub="skechers_official" onclick="setSub(this,'skechers')">공식몰</button>
+  <button class="sub-tab" data-sub="skechers_app" onclick="setSub(this,'skechers')">앱</button>
+</div>
+
+<div class="subbrand-row" id="subRowHyper" style="display:none">
+  <span class="subbrand-label">하이퍼 하위</span>
+  <button class="sub-tab active" data-sub="all" onclick="setSub(this,'hyper')">전체</button>
+  <button class="sub-tab" data-sub="kitchenaid" onclick="setSub(this,'hyper')">키친에이드</button>
+  <button class="sub-tab" data-sub="ecovacs" onclick="setSub(this,'hyper')">에코백스</button>
+  <button class="sub-tab" data-sub="anova" onclick="setSub(this,'hyper')">아노바</button>
+</div>
+
+<div class="filter-row">
+  <span class="filter-label">매체</span>
+  <div class="tab-group" id="chTabs">
+    <button class="tab active" data-ch="all" onclick="setCh(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
+    <button class="tab" data-ch="meta" onclick="setCh(this)"><span class="dot" style="background:var(--meta)"></span>Meta</button>
+    <button class="tab" data-ch="google" onclick="setCh(this)"><span class="dot" style="background:var(--google)"></span>Google</button>
+    <button class="tab" data-ch="ngfa" onclick="setCh(this)"><span class="dot" style="background:var(--ngfa)"></span>네이버 GFA</button>
+    <button class="tab" data-ch="nsa" onclick="setCh(this)"><span class="dot" style="background:var(--nsa)"></span>네이버 SA</button>
+  </div>
+</div>
+
+<div class="kpi-grid" id="kpiGrid"></div>
+
+<div class="chart-section">
+  <div class="chart-header">
+    <span class="chart-title">일별 추이</span>
+    <div class="chart-legend" id="chartLegend"></div>
+  </div>
+  <div class="metric-selector" id="metricSelector"></div>
+  <p class="metric-hint" id="metricHint"></p>
+  <div style="position:relative">
+    <div id="lineChartWrap"></div>
+    <div class="tip" id="tip"></div>
+  </div>
+</div>
+
+<div class="roas-section">
+  <div class="roas-card" id="roasCard">
+    <div class="section-title" style="margin-bottom:14px">ROAS 비교</div>
+    <div id="roasRows"></div>
+  </div>
+  <div class="roas-card">
+    <div class="section-title" id="cvrTitle" style="margin-bottom:14px">CVR 비교</div>
+    <div id="cvrRows"></div>
+  </div>
+</div>
+
+<div class="table-section">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <span>상세 데이터</span>
+    <div style="position:relative">
+      <button class="col-dropdown-btn" id="colDropBtn" onclick="toggleColDrop()">
+        컬럼 선택 <span id="colCount"></span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:4px;vertical-align:middle"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="col-dropdown" id="colDropdown" style="display:none"></div>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table id="dataTable">
+      <thead><tr id="tableHead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+var RAW = {
+  skechers_official: {
+    meta:   {cost:1100000, revenue:4510000,  clicks:8800,  impressions:295000,  conversions:264},
+    google: {cost:700000,  revenue:2450000,  clicks:5000,  impressions:196000,  conversions:150},
+    ngfa:   {cost:440000,  revenue:1628000,  clicks:3800,  impressions:208000,  conversions:114},
+    nsa:    {cost:540000,  revenue:2430000,  clicks:6000,  impressions:129000,  conversions:180}
+  },
+  skechers_app: {
+    meta:   {cost:720000,  revenue:2770000,  clicks:5400,  impressions:185000,  conversions:162},
+    google: {cost:450000,  revenue:1575000,  clicks:3100,  impressions:124000,  conversions:93},
+    ngfa:   {cost:280000,  revenue:1036000,  clicks:2400,  impressions:132000,  conversions:72},
+    nsa:    {cost:340000,  revenue:1530000,  clicks:3800,  impressions:81000,   conversions:114}
+  },
+  mynoxcel:   {
+    meta:   {cost:980000,  revenue:3920000,  clicks:7800,  impressions:260000,  conversions:234},
+    google: {cost:720000,  revenue:2376000,  clicks:4800,  impressions:192000,  conversions:144},
+    ngfa:   {cost:480000,  revenue:1680000,  clicks:4000,  impressions:220000,  conversions:120},
+    nsa:    {cost:560000,  revenue:2520000,  clicks:6200,  impressions:134000,  conversions:186}
+  },
+  careerbut:  {
+    meta:   {cost:760000,  revenue:3040000,  clicks:6100,  impressions:200000,  conversions:183},
+    google: {cost:580000,  revenue:1914000,  clicks:3900,  impressions:155000,  conversions:117},
+    ngfa:   {cost:340000,  revenue:1190000,  clicks:2800,  impressions:160000,  conversions:84},
+    nsa:    {cost:420000,  revenue:1890000,  clicks:4600,  impressions:100000,  conversions:138}
+  },
+  kitchenaid: {
+    meta:   {cost:420000,  revenue:1680000,  clicks:3360,  impressions:109000,  conversions:101},
+    google: {cost:280000,  revenue:924000,   clicks:1870,  impressions:74000,   conversions:56},
+    ngfa:   {cost:160000,  revenue:560000,   clicks:1300,  impressions:75000,   conversions:39},
+    nsa:    {cost:200000,  revenue:900000,   clicks:2200,  impressions:47000,   conversions:66}
+  },
+  ecovacs:    {
+    meta:   {cost:480000,  revenue:1920000,  clicks:3840,  impressions:124000,  conversions:115},
+    google: {cost:310000,  revenue:1023000,  clicks:2070,  impressions:82000,   conversions:62},
+    ngfa:   {cost:180000,  revenue:630000,   clicks:1500,  impressions:84000,   conversions:45},
+    nsa:    {cost:230000,  revenue:1035000,  clicks:2580,  impressions:54000,   conversions:77}
+  },
+  anova:      {
+    meta:   {cost:360000,  revenue:1440000,  clicks:2880,  impressions:94000,   conversions:86},
+    google: {cost:230000,  revenue:759000,   clicks:1560,  impressions:62000,   conversions:47},
+    ngfa:   {cost:140000,  revenue:490000,   clicks:1200,  impressions:64000,   conversions:36},
+    nsa:    {cost:170000,  revenue:765000,   clicks:1900,  impressions:41000,   conversions:57}
+  }
+};
+
+// ── Google Sheets CSV 연동 ────────────────────────────────────────────────────
+var CSV_URLS = {
+  nsa:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vQRlhITn9rPa816cD0V5rJc15nEh0Z6lrplx4Lzcm1C7byMwKrfMBTndO97sfYOVZV4uas_t-0e0K-Z/pub?gid=1129557155&single=true&output=csv',
+  google: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQRlhITn9rPa816cD0V5rJc15nEh0Z6lrplx4Lzcm1C7byMwKrfMBTndO97sfYOVZV4uas_t-0e0K-Z/pub?gid=1451184214&single=true&output=csv'
+};
+
+var sheetsCache = {};
+
+function showLoading(on) {
+  var el = document.getElementById('loadingBanner');
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+// CSV 문자열 파싱
+function parseCSV(text) {
+  var lines = text.trim().split('\n');
+  var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^"|"$/g, ''); });
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = lines[i].split(',').map(function(c) { return c.trim().replace(/^"|"$/g, ''); });
+    if (cols.length < 2) continue;
+    var row = {};
+    for (var j = 0; j < headers.length; j++) row[headers[j]] = cols[j] || '';
+    rows.push(row);
+  }
+  return rows;
+}
+
+// CSV 행 → 날짜별 합산 (네이버SA)
+function aggregateNSA(rows) {
+  var byDate = {};
+  // 컬럼명
+  var COL_DATE = '일자';
+  var COL_COST = '총비용(vat-)';
+  var COL_IMPR = '노출수';
+  var COL_CLICK = '클릭수';
+  var COL_CONV = '구매완료 전환수';
+  var COL_REV  = '구매완료 매출액';
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
+    if (!dateStr) continue;
+    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
+    byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
+    byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
+    byDate[dateStr].conversions += Number(r[COL_CONV])  || 0;
+    byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
+  }
+  return byDate;
+}
+
+// CSV 행 → 날짜별 합산 (구글DA, mode: 'official' | 'app')
+function aggregateGoogleDA(rows, mode) {
+  var byDate = {};
+  var COL_DATE = '일자';
+  var COL_TYPE = '캠페인유형';
+  var COL_COST = '총비용(vat-)';
+  var COL_IMPR = '노출수';
+  var COL_CLICK = '클릭수';
+  var COL_CONV = '총 구매수';
+  var COL_REV  = '총 매출액';
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var type = r[COL_TYPE] || '';
+    if (mode === 'app'      && type !== '앱') continue;
+    if (mode === 'official' && type === '앱') continue;
+    var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
+    if (!dateStr) continue;
+    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
+    byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
+    byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
+    byDate[dateStr].conversions += Number(r[COL_CONV])  || 0;
+    byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
+  }
+  return byDate;
+}
+
+// byDate 객체 → 날짜 범위 합산 → {cost,...}
+function sumByDateRange(byDate, dateFrom, dateTo) {
+  var out = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+  var keys = Object.keys(byDate);
+  for (var i = 0; i < keys.length; i++) {
+    var d = keys[i];
+    if (d < dateFrom || d > dateTo) continue;
+    out.cost        += byDate[d].cost;
+    out.revenue     += byDate[d].revenue;
+    out.clicks      += byDate[d].clicks;
+    out.impressions += byDate[d].impressions;
+    out.conversions += byDate[d].conversions;
+  }
+  return out;
+}
+
+function buildSkechersRaw(parsed, dateFrom, dateTo) {
+  return {
+    skechers_official: {
+      google: sumByDateRange(parsed.googleOfficial, dateFrom, dateTo),
+      nsa:    sumByDateRange(parsed.nsa,            dateFrom, dateTo)
+    },
+    skechers_app: {
+      google: sumByDateRange(parsed.googleApp,      dateFrom, dateTo),
+      nsa:    {cost:0, revenue:0, clicks:0, impressions:0, conversions:0}
+    }
+  };
+}
+
+function buildSkechersPrev(parsed, dateFrom, dateTo) {
+  var f = new Date(dateFrom), t = new Date(dateTo);
+  var diff = t - f;
+  var prevTo   = new Date(f - 1);
+  var prevFrom = new Date(f - diff - 86400000);
+  var pf = prevFrom.toISOString().slice(0, 10);
+  var pt = prevTo.toISOString().slice(0, 10);
+  return buildSkechersRaw(parsed, pf, pt);
+}
+
+function loadSkechers(callback) {
+  if (sheetsCache.skechers) { callback(sheetsCache.skechers); return; }
+  showLoading(true);
+
+  var nsaPromise    = fetch(CSV_URLS.nsa).then(function(r) { return r.text(); });
+  var googlePromise = fetch(CSV_URLS.google).then(function(r) { return r.text(); });
+
+  Promise.all([nsaPromise, googlePromise])
+    .then(function(results) {
+      var nsaRows    = parseCSV(results[0]);
+      var googleRows = parseCSV(results[1]);
+      var parsed = {
+        nsa:           aggregateNSA(nsaRows),
+        googleOfficial: aggregateGoogleDA(googleRows, 'official'),
+        googleApp:      aggregateGoogleDA(googleRows, 'app')
+      };
+      sheetsCache.skechers = parsed;
+      showLoading(false);
+      callback(parsed);
+    })
+    .catch(function(err) {
+      showLoading(false);
+      console.error('Sheets 로드 실패:', err);
+      callback(null);
+    });
+}
+
+// 스케쳐스 여부 판단
+function isSkechersBrand() {
+  return S.brand === 'skechers' || S.brand === 'all' ||
+    S.brand === 'hyper'; // all일 때도 포함되지만 나머지는 샘플
+}
+
+// render 오버라이드: 스케쳐스 관련 브랜드면 API 호출
+function renderWithData() {
+  var needsSheets = (S.brand === 'skechers' || S.brand === 'all');
+  if (!needsSheets) { render(); return; }
+
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+
+  loadSkechers(function(apiData) {
+    if (apiData) {
+      // RAW에 실제 데이터 주입
+      var built = buildSkechersRaw(apiData, dateFrom, dateTo);
+      RAW.skechers_official = built.skechers_official;
+      RAW.skechers_app      = built.skechers_app;
+      // PREV도 실제 전기 데이터로
+      var prev = buildSkechersPrev(apiData, dateFrom, dateTo);
+      PREV.skechers_official = prev.skechers_official;
+      PREV.skechers_app      = prev.skechers_app;
+    }
+    render();
+  });
+}
+
+var PREV = {};
+(function() {
+  var brands = Object.keys(RAW);
+  for (var bi = 0; bi < brands.length; bi++) {
+    var b = brands[bi];
+    PREV[b] = {};
+    var chs = Object.keys(RAW[b]);
+    for (var ci = 0; ci < chs.length; ci++) {
+      var c = chs[ci];
+      var d = RAW[b][c];
+      PREV[b][c] = {
+        cost: Math.round(d.cost * 0.88),
+        revenue: Math.round(d.revenue * 0.84),
+        clicks: Math.round(d.clicks * 0.87),
+        impressions: Math.round(d.impressions * 0.89),
+        conversions: Math.round(d.conversions * 0.82)
+      };
+    }
+  }
+})();
+
+var HYPER_SUBS    = ['kitchenaid', 'ecovacs', 'anova'];
+var SKECHERS_SUBS = ['skechers_official', 'skechers_app'];
+var ALL_BRANDS = ['skechers_official', 'skechers_app', 'mynoxcel', 'careerbut', 'kitchenaid', 'ecovacs', 'anova'];
+var CHS = ['meta', 'google', 'ngfa', 'nsa'];
+var CH_NAME  = {meta: 'Meta', google: 'Google Ads', ngfa: '네이버 GFA', nsa: '네이버 SA'};
+var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)'};
+var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', ngfa: '#03c75a', nsa: '#00b4d8'};
+var CH_SHORT = {meta: 'Meta', google: 'Google', ngfa: 'N.GFA', nsa: 'N.SA'};
+
+var CHART_METRICS = [
+  {key: 'cost',        label: '비용',   type: 'won',  color: '#4f8ef7'},
+  {key: 'revenue',     label: '매출',   type: 'won',  color: '#6ddf9a'},
+  {key: 'roas',        label: 'ROAS',   type: 'roas', color: '#f4a044'},
+  {key: 'conversions', label: '전환수', type: 'num',  color: '#e879f9'},
+  {key: 'cvr',         label: 'CVR',    type: 'pct',  color: '#a78bfa'},
+  {key: 'cpa',         label: 'CPA',    type: 'cpc',  color: '#fb923c'},
+  {key: 'cpc',         label: 'CPC',    type: 'cpc',  color: '#f06060'},
+  {key: 'ctr',         label: 'CTR',    type: 'pct',  color: '#00b4d8'},
+  {key: 'impressions', label: '노출',   type: 'num',  color: '#03c75a'},
+  {key: 'clicks',      label: '클릭',   type: 'num',  color: '#fbbf24'},
+  {key: 'cpm',         label: 'CPM',    type: 'cpc',  color: '#f472b6'}
+];
+
+var selectedMetrics = ['cost', 'revenue'];
+var S = {brand: 'all', sub: 'all', ch: 'all'};
+
+var DAYS = ['3/1', '3/5', '3/9', '3/13', '3/17', '3/21', '3/24'];
+var MULTS = {
+  meta:   [1.0, 0.91, 1.08, 1.22, 1.17, 1.27, 1.15],
+  google: [1.0, 1.07, 0.97, 1.14, 1.03, 1.10, 1.07],
+  ngfa:   [1.0, 1.12, 0.94, 1.29, 1.18, 1.09, 1.24],
+  nsa:    [1.0, 1.10, 0.95, 1.24, 1.14, 1.05, 1.19]
+};
+
+function brandKeys() {
+  if (S.brand === 'all') return ALL_BRANDS;
+  if (S.brand === 'hyper')    return S.sub === 'all' ? HYPER_SUBS    : [S.sub];
+  if (S.brand === 'skechers') return S.sub === 'all' ? SKECHERS_SUBS : [S.sub];
+  return [S.brand];
+}
+
+function chKeys() {
+  return S.ch === 'all' ? CHS : [S.ch];
+}
+
+function sumData(bk, ck, dataset) {
+  var out = {};
+  for (var ci = 0; ci < ck.length; ci++) {
+    var c = ck[ci];
+    out[c] = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0};
+    for (var bi = 0; bi < bk.length; bi++) {
+      var b = bk[bi];
+      if (!dataset[b] || !dataset[b][c]) continue;
+      var d = dataset[b][c];
+      out[c].cost        += d.cost;
+      out[c].revenue     += d.revenue;
+      out[c].clicks      += d.clicks;
+      out[c].impressions += d.impressions;
+      out[c].conversions += d.conversions;
+    }
+  }
+  return out;
+}
+
+function calc(d) {
+  return {
+    cost:        d.cost,
+    revenue:     d.revenue,
+    roas:        d.revenue / d.cost,
+    cvr:         d.conversions / d.clicks,
+    clicks:      d.clicks,
+    cpc:         d.cost / d.clicks,
+    ctr:         d.clicks / d.impressions,
+    impressions: d.impressions,
+    cpm:         d.cost / d.impressions * 1000,
+    conversions: d.conversions,
+    cpa:         d.conversions > 0 ? d.cost / d.conversions : 0
+  };
+}
+
+function aggCalc(map) {
+  var s = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0};
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var d = map[keys[i]];
+    s.cost        += d.cost;
+    s.revenue     += d.revenue;
+    s.clicks      += d.clicks;
+    s.impressions += d.impressions;
+    s.conversions += d.conversions;
+  }
+  var result = calc(s);
+  result.cpa = s.conversions > 0 ? s.cost / s.conversions : 0;
+  return result;
+}
+
+function fmt(n, t) {
+  if (t === 'won')  return '₩' + Math.round(n).toLocaleString('ko-KR');
+  if (t === 'pct')  return (n * 100).toFixed(2) + '%';
+  if (t === 'roas') return (n * 100).toFixed(0) + '%';
+  if (t === 'x')    return n.toFixed(2) + 'x';
+  if (t === 'num')  return Math.round(n).toLocaleString('ko-KR');
+  if (t === 'cpc')  return '₩' + Math.round(n).toLocaleString('ko-KR');
+  return String(n);
+}
+
+var KPIS = [
+  {key: 'cost',        label: '비용',    type: 'won'},
+  {key: 'revenue',     label: '매출',    type: 'won'},
+  {key: 'roas',        label: 'ROAS',    type: 'roas'},
+  {key: 'conversions', label: '전환수',  type: 'num'},
+  {key: 'cvr',         label: 'CVR',     type: 'pct'},
+  {key: 'cpa',         label: 'CPA',     type: 'cpc'},
+  {key: 'clicks',      label: '클릭',    type: 'num'},
+  {key: 'cpc',         label: 'CPC',     type: 'cpc'},
+  {key: 'ctr',         label: 'CTR',     type: 'pct'},
+  {key: 'impressions', label: '노출',    type: 'num'},
+  {key: 'cpm',         label: 'CPM',     type: 'cpc'}
+];
+
+function renderKPIs(cm, pm) {
+  var ca = aggCalc(cm);
+  var pa = aggCalc(pm);
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+
+  // 사용할 KPI 목록 결정 (kpiOrder 있으면 해당 순서 사용)
+  var kpiList;
+  if (override && override.kpiOrder) {
+    var kpiMap = {};
+    for (var mi = 0; mi < KPIS.length; mi++) kpiMap[KPIS[mi].key] = KPIS[mi];
+    kpiList = [];
+    for (var oi = 0; oi < override.kpiOrder.length; oi++) {
+      if (kpiMap[override.kpiOrder[oi]]) kpiList.push(kpiMap[override.kpiOrder[oi]]);
+    }
+  } else {
+    kpiList = KPIS.filter(function(k) {
+      return !(override && override.excludeCols && override.excludeCols.indexOf(k.key) !== -1);
+    });
+  }
+
+  // 그리드 열 수: 5열 기준, 커리어벗은 9개 → 5+4
+  var colCount = override && override.kpiOrder ? 5 : 6;
+  document.getElementById('kpiGrid').style.gridTemplateColumns = 'repeat(' + colCount + ', 1fr)';
+
+  var html = '';
+  for (var i = 0; i < kpiList.length; i++) {
+    var k = kpiList[i];
+    var label = (override && override.labelOverrides && override.labelOverrides[k.key]) ? override.labelOverrides[k.key] : k.label;
+    var v = ca[k.key];
+    var p = pa[k.key];
+    var chg = (v - p) / p;
+    var isUp = chg >= 0;
+    var isCostMetric = (k.key === 'cost' || k.key === 'cpc' || k.key === 'cpm' || k.key === 'cpa');
+    var isGood = isCostMetric ? !isUp : isUp;
+    html += '<div class="kpi-card">';
+    html += '<div class="kpi-label">' + label + '</div>';
+    html += '<div class="kpi-value">' + fmt(v, k.type) + '</div>';
+    html += '<div class="kpi-sub">';
+    html += '<span class="badge ' + (isGood ? 'up' : 'down') + '">' + (isUp ? '+' : '') + (chg * 100).toFixed(1) + '%</span>';
+    html += '<span style="color:var(--text);opacity:.55;letter-spacing:0.03em">' + fmt(p, k.type) + '</span>';
+    html += '</div></div>';
+  }
+  document.getElementById('kpiGrid').innerHTML = html;
+}
+
+function renderBreakdown(cm) {
+  var ck = chKeys();
+  var bd = document.getElementById('breakdown');
+  if (ck.length === 1) bd.style.gridTemplateColumns = '1fr';
+  else if (ck.length === 2) bd.style.gridTemplateColumns = '1fr 1fr';
+  else if (ck.length === 3) bd.style.gridTemplateColumns = 'repeat(3,1fr)';
+  else bd.style.gridTemplateColumns = 'repeat(4,1fr)';
+
+  var html = '';
+  for (var i = 0; i < ck.length; i++) {
+    var c = ck[i];
+    var d = calc(cm[c]);
+    html += '<div class="ch-card" data-ch="' + c + '">';
+    html += '<div class="ch-name"><div class="dot" style="background:' + CH_COLOR[c] + '"></div>' + CH_NAME[c] + '</div>';
+    html += '<div class="ch-metrics">';
+    html += '<div class="ch-metric"><div class="ch-metric-label">비용</div><div class="ch-metric-value">' + fmt(d.cost, 'won') + '</div></div>';
+    html += '<div class="ch-metric"><div class="ch-metric-label">매출</div><div class="ch-metric-value">' + fmt(d.revenue, 'won') + '</div></div>';
+    html += '<div class="ch-metric"><div class="ch-metric-label">ROAS</div><div class="ch-metric-value">' + fmt(d.roas, 'x') + '</div></div>';
+    html += '<div class="ch-metric"><div class="ch-metric-label">CVR</div><div class="ch-metric-value">' + fmt(d.cvr, 'pct') + '</div></div>';
+    html += '<div class="ch-metric"><div class="ch-metric-label">CPC</div><div class="ch-metric-value">' + fmt(d.cpc, 'cpc') + '</div></div>';
+    html += '<div class="ch-metric"><div class="ch-metric-label">CTR</div><div class="ch-metric-value">' + fmt(d.ctr, 'pct') + '</div></div>';
+    html += '</div></div>';
+  }
+  bd.innerHTML = html;
+}
+
+function buildMetricSelector() {
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+  // auto-remove excluded metrics from selection
+  if (override && override.excludeCols) {
+    for (var xi = 0; xi < override.excludeCols.length; xi++) {
+      var exKey = override.excludeCols[xi];
+      var exIdx = selectedMetrics.indexOf(exKey);
+      if (exIdx !== -1) selectedMetrics.splice(exIdx, 1);
+    }
+    if (selectedMetrics.length === 0) selectedMetrics = ['cost'];
+  }
+  var html = '';
+  for (var i = 0; i < CHART_METRICS.length; i++) {
+    var m = CHART_METRICS[i];
+    var isExcluded = override && override.excludeCols && override.excludeCols.indexOf(m.key) !== -1;
+    if (isExcluded) continue;
+    var label = (override && override.labelOverrides && override.labelOverrides[m.key]) ? override.labelOverrides[m.key] : m.label;
+    var isSel = selectedMetrics.indexOf(m.key) !== -1;
+    var isDis = !isSel && selectedMetrics.length >= 3;
+    var cls = 'metric-btn' + (isSel ? ' m-selected' : '') + (isDis ? ' m-disabled' : '');
+    var style = isSel ? 'background:' + m.color + '20;border-color:' + m.color + ';' : '';
+    html += '<button class="' + cls + '" style="' + style + '" onclick="toggleMetric(\'' + m.key + '\')">';
+    html += '<span class="mbullet" style="background:' + m.color + '"></span>' + label;
+    html += '</button>';
+  }
+  document.getElementById('metricSelector').innerHTML = html;
+  var hint = document.getElementById('metricHint');
+  if (selectedMetrics.length >= 3) {
+    hint.textContent = '최대 3개 선택됨 — 다른 지표를 보려면 선택 해제하세요';
+  } else {
+    hint.textContent = '최대 3개 지표 선택 가능 (현재 ' + selectedMetrics.length + '개)';
+  }
+}
+
+function toggleMetric(key) {
+  var idx = selectedMetrics.indexOf(key);
+  if (idx !== -1) {
+    if (selectedMetrics.length === 1) return;
+    selectedMetrics.splice(idx, 1);
+  } else {
+    if (selectedMetrics.length >= 3) return;
+    selectedMetrics.push(key);
+  }
+  buildMetricSelector();
+  var bk = brandKeys();
+  var ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderChart(cm, ck);
+}
+
+function renderChart(cm, ck) {
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+  var activeMets = [];
+  for (var i = 0; i < CHART_METRICS.length; i++) {
+    if (selectedMetrics.indexOf(CHART_METRICS[i].key) !== -1) {
+      var m = CHART_METRICS[i];
+      var label = (override && override.labelOverrides && override.labelOverrides[m.key]) ? override.labelOverrides[m.key] : m.label;
+      activeMets.push({key: m.key, label: label, type: m.type, color: m.color});
+    }
+  }
+
+  // Legend
+  var legHtml = '';
+  for (var i = 0; i < activeMets.length; i++) {
+    legHtml += '<div class="legend-item"><div class="legend-dot" style="background:' + activeMets[i].color + '"></div>' + activeMets[i].label + '</div>';
+  }
+  document.getElementById('chartLegend').innerHTML = legHtml;
+
+  // Build daily series per metric
+  var series = [];
+  for (var mi = 0; mi < activeMets.length; mi++) {
+    var metKey = activeMets[mi].key;
+    var vals = [];
+    for (var di = 0; di < DAYS.length; di++) {
+      var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+      for (var ci = 0; ci < ck.length; ci++) {
+        var ch = ck[ci];
+        var base = cm[ch];
+        var mult = MULTS[ch][di];
+        s.cost        += Math.round(base.cost * mult);
+        s.revenue     += Math.round(base.revenue * mult);
+        s.clicks      += Math.round(base.clicks * mult);
+        s.impressions += Math.round(base.impressions * mult);
+        s.conversions += Math.round(base.conversions * mult);
+      }
+      var d = calc(s);
+      vals.push(d[metKey]);
+    }
+    series.push({meta: activeMets[mi], values: vals});
+  }
+
+  // Normalize each series to [0,1] for rendering
+  var normed = [];
+  for (var i = 0; i < series.length; i++) {
+    var vs = series[i].values;
+    var mn = vs[0], mx = vs[0];
+    for (var j = 1; j < vs.length; j++) {
+      if (vs[j] < mn) mn = vs[j];
+      if (vs[j] > mx) mx = vs[j];
+    }
+    var rng = mx - mn || 1;
+    var n = [];
+    for (var j = 0; j < vs.length; j++) n.push((vs[j] - mn) / rng);
+    normed.push(n);
+  }
+
+  var N = DAYS.length;
+  var W = 620, H = 200;
+  var PL = 16, PR = 16, PT = 14, PB = 28;
+  var cW = W - PL - PR;
+  var cH = H - PT - PB;
+
+  function xp(i) { return PL + (i / (N - 1)) * cW; }
+  function yp(n) { return PT + (1 - n) * cH; }
+
+  var svg = '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible;display:block">';
+
+  // Grid
+  svg += '<g>';
+  for (var g = 0; g <= 4; g++) {
+    var gy = PT + (g / 4) * cH;
+    svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+  }
+  svg += '</g>';
+
+  // X labels
+  for (var i = 0; i < DAYS.length; i++) {
+    svg += '<text x="' + xp(i) + '" y="' + (H - 4) + '" text-anchor="middle" class="lc-axis-text">' + DAYS[i] + '</text>';
+  }
+
+  // Series
+  for (var si = 0; si < series.length; si++) {
+    var col = series[si].meta.color;
+    var pts = normed[si];
+    var coords = [];
+    for (var i = 0; i < N; i++) coords.push([xp(i), yp(pts[i])]);
+
+    // Area
+    var aD = 'M ' + coords[0][0] + ' ' + yp(0);
+    for (var i = 0; i < N; i++) aD += ' L ' + coords[i][0] + ' ' + coords[i][1];
+    aD += ' L ' + coords[N-1][0] + ' ' + yp(0) + ' Z';
+    svg += '<path d="' + aD + '" fill="' + col + '" opacity="0.08"/>';
+
+    // Line (smooth bezier)
+    var lD = 'M ' + coords[0][0] + ' ' + coords[0][1];
+    for (var i = 1; i < N; i++) {
+      var x0 = coords[i-1][0], y0 = coords[i-1][1];
+      var x1 = coords[i][0],   y1 = coords[i][1];
+      var cpx = (x0 + x1) / 2;
+      lD += ' C ' + cpx + ' ' + y0 + ' ' + cpx + ' ' + y1 + ' ' + x1 + ' ' + y1;
+    }
+    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+
+    // Dots
+    var mLabel = series[si].meta.label;
+    var mType  = series[si].meta.type;
+    var mVals  = series[si].values;
+    for (var i = 0; i < N; i++) {
+      var tipTxt = mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')';
+      svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3.5" fill="' + col + '" stroke="#16181c" stroke-width="2" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+    }
+  }
+
+  svg += '</svg>';
+  document.getElementById('lineChartWrap').innerHTML = svg;
+}
+
+function showTip(e, text) {
+  var tip = document.getElementById('tip');
+  tip.textContent = text;
+  tip.style.opacity = '1';
+  var rect = document.querySelector('.chart-section').getBoundingClientRect();
+  tip.style.left = (e.clientX - rect.left + 12) + 'px';
+  tip.style.top  = (e.clientY - rect.top  - 10) + 'px';
+}
+function hideTip() {
+  document.getElementById('tip').style.opacity = '0';
+}
+
+function renderRoasCvr(cm, ck) {
+  var brand = getActiveBrand();
+  var isCareer = brand === 'careerbut';
+  var roasSection = document.querySelector('.roas-section');
+  // ROAS 카드 숨김/표시
+  var roasCard = document.getElementById('roasCard');
+  if (roasCard) roasCard.style.display = isCareer ? 'none' : '';
+  // CVR 레이블
+  var cvrTitle = document.getElementById('cvrTitle');
+  if (cvrTitle) cvrTitle.textContent = isCareer ? '회원가입률 (CVR) 비교' : 'CVR 비교';
+
+  if (!isCareer) {
+    var rv = [];
+    for (var i = 0; i < ck.length; i++) rv.push({c: ck[i], v: calc(cm[ck[i]]).roas});
+    var rm = rv[0].v;
+    for (var i = 1; i < rv.length; i++) if (rv[i].v > rm) rm = rv[i].v;
+    var html = '';
+    for (var i = 0; i < rv.length; i++) {
+      var c = rv[i].c, v = rv[i].v;
+      html += '<div class="roas-row"><div class="roas-ch">' + CH_SHORT[c] + '</div>';
+      html += '<div class="roas-bar-wrap"><div class="roas-bar-fill" style="width:' + (v/rm*100) + '%;background:' + CH_COLOR[c] + '"></div></div>';
+      html += '<div class="roas-val">' + fmt(v, 'roas') + '</div></div>';
+    }
+    document.getElementById('roasRows').innerHTML = html;
+  }
+
+  var cv = [];
+  for (var i = 0; i < ck.length; i++) cv.push({c: ck[i], v: calc(cm[ck[i]]).cvr});
+  var cm2 = cv[0].v;
+  for (var i = 1; i < cv.length; i++) if (cv[i].v > cm2) cm2 = cv[i].v;
+  var html2 = '';
+  for (var i = 0; i < cv.length; i++) {
+    var c = cv[i].c, v = cv[i].v;
+    html2 += '<div class="roas-row"><div class="roas-ch">' + CH_SHORT[c] + '</div>';
+    html2 += '<div class="roas-bar-wrap"><div class="roas-bar-fill" style="width:' + (v/cm2*100) + '%;background:' + CH_COLOR[c] + '"></div></div>';
+    html2 += '<div class="roas-val">' + (v*100).toFixed(2) + '%</div></div>';
+  }
+  document.getElementById('cvrRows').innerHTML = html2;
+}
+
+var TABLE_COLS = [
+  {key:'cost',        label:'비용',   type:'won'},
+  {key:'revenue',     label:'매출',   type:'won'},
+  {key:'roas',        label:'ROAS',   type:'roas'},
+  {key:'conversions', label:'전환수', type:'num'},
+  {key:'cpa',         label:'CPA',    type:'cpc'},
+  {key:'cvr',         label:'CVR',    type:'pct'},
+  {key:'clicks',      label:'클릭',   type:'num'},
+  {key:'cpc',         label:'CPC',    type:'cpc'},
+  {key:'ctr',         label:'CTR',    type:'pct'},
+  {key:'impressions', label:'노출',   type:'num'},
+  {key:'cpm',         label:'CPM',    type:'cpc'}
+];
+var selectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
+
+function buildColDropdown() {
+  var html = '';
+  for (var i = 0; i < TABLE_COLS.length; i++) {
+    var col = TABLE_COLS[i];
+    var active = selectedCols.indexOf(col.key) !== -1;
+    html += '<div class="col-item ' + (active ? 'col-active' : '') + '" onclick="toggleCol(\'' + col.key + '\')">';
+    html += '<div class="col-check"></div>' + col.label + '</div>';
+  }
+  document.getElementById('colDropdown').innerHTML = html;
+  document.getElementById('colCount').textContent = '(' + selectedCols.length + '/' + TABLE_COLS.length + ')';
+}
+
+function toggleColDrop() {
+  var dd = document.getElementById('colDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.table-header')) {
+    document.getElementById('colDropdown').style.display = 'none';
+  }
+});
+
+function toggleCol(key) {
+  var idx = selectedCols.indexOf(key);
+  if (idx !== -1) {
+    if (selectedCols.length === 1) return;
+    selectedCols.splice(idx, 1);
+  } else {
+    selectedCols.push(key);
+    selectedCols.sort(function(a, b) {
+      var ai = TABLE_COLS.findIndex(function(c){return c.key===a;});
+      var bi = TABLE_COLS.findIndex(function(c){return c.key===b;});
+      return ai - bi;
+    });
+  }
+  buildColDropdown();
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderTable(cm, ck);
+}
+
+// 브랜드별 컬럼/레이블 오버라이드
+var BRAND_OVERRIDES = {
+  careerbut: {
+    excludeCols: ['revenue', 'roas'],
+    labelOverrides: {conversions: '회원가입', cpa: 'CPA', cvr: 'CVR'},
+    kpiOrder: ['cost', 'conversions', 'cvr', 'cpa', 'clicks', 'ctr', 'cpc', 'impressions', 'cpm']
+  }
+};
+
+function getActiveBrand() {
+  if (S.brand === 'careerbut') return 'careerbut';
+  return null;
+}
+
+function getEffectiveCols() {
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+  return TABLE_COLS.filter(function(c) {
+    if (selectedCols.indexOf(c.key) === -1) return false;
+    if (override && override.excludeCols && override.excludeCols.indexOf(c.key) !== -1) return false;
+    return true;
+  }).map(function(c) {
+    if (override && override.labelOverrides && override.labelOverrides[c.key]) {
+      return {key: c.key, label: override.labelOverrides[c.key], type: c.type};
+    }
+    return c;
+  });
+}
+
+var tableSort = {key: null, asc: true};
+
+function calcExtended(d) {
+  var base = calc(d);
+  base.cpa = d.conversions > 0 ? d.cost / d.conversions : 0;
+  return base;
+}
+
+function buildColDropdown() {
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+  var html = '';
+  for (var i = 0; i < TABLE_COLS.length; i++) {
+    var col = TABLE_COLS[i];
+    var isExcluded = override && override.excludeCols && override.excludeCols.indexOf(col.key) !== -1;
+    var label = (override && override.labelOverrides && override.labelOverrides[col.key]) ? override.labelOverrides[col.key] : col.label;
+    var active = selectedCols.indexOf(col.key) !== -1;
+    var cls = 'col-item' + (active ? ' col-active' : '') + (isExcluded ? ' col-disabled' : '');
+    var title = isExcluded ? ' title="' + S.brand + ' 브랜드에서 사용 안 함"' : '';
+    html += '<div class="' + cls + '"' + title + ' onclick="' + (isExcluded ? '' : 'toggleCol(\'' + col.key + '\')') + '">';
+    html += '<div class="col-check"></div>' + label + (isExcluded ? ' <span style="opacity:.4;font-size:10px">제외</span>' : '') + '</div>';
+  }
+  document.getElementById('colDropdown').innerHTML = html;
+  var visibleCount = getEffectiveCols().length;
+  document.getElementById('colCount').textContent = '(' + visibleCount + ')';
+}
+
+function renderTable(cm, ck) {
+  var activeCols = getEffectiveCols();
+
+  // thead
+  var headHtml = '<th style="cursor:default">매체</th>';
+  for (var i = 0; i < activeCols.length; i++) {
+    var col = activeCols[i];
+    var isSort = tableSort.key === col.key;
+    var arrow = isSort ? (tableSort.asc ? ' ↑' : ' ↓') : ' <span style="opacity:.25">↕</span>';
+    headHtml += '<th style="cursor:pointer;user-select:none" onclick="sortTable(\'' + col.key + '\')">' + col.label + arrow + '</th>';
+  }
+  document.getElementById('tableHead').innerHTML = headHtml;
+
+  // build rows
+  var rows = [];
+  for (var i = 0; i < ck.length; i++) {
+    var c = ck[i];
+    var d = calcExtended(cm[c]);
+    rows.push({ch: c, data: d});
+  }
+
+  // sort
+  if (tableSort.key) {
+    var sk = tableSort.key;
+    var asc = tableSort.asc;
+    rows.sort(function(a, b) {
+      var av = a.data[sk] || 0;
+      var bv = b.data[sk] || 0;
+      return asc ? av - bv : bv - av;
+    });
+  }
+
+  // tbody
+  var html = '';
+  for (var i = 0; i < rows.length; i++) {
+    var c = rows[i].ch;
+    var d = rows[i].data;
+    html += '<tr><td><span class="ch-pill ' + c + '">' + CH_NAME[c] + '</span></td>';
+    for (var j = 0; j < activeCols.length; j++) {
+      var col = activeCols[j];
+      html += '<td>' + fmt(d[col.key], col.type) + '</td>';
+    }
+    html += '</tr>';
+  }
+  document.getElementById('tbody').innerHTML = html;
+}
+
+function sortTable(key) {
+  if (tableSort.key === key) {
+    tableSort.asc = !tableSort.asc;
+  } else {
+    tableSort.key = key;
+    tableSort.asc = false; // default: 높은 값 먼저
+  }
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderTable(cm, ck);
+}
+
+function render() {
+  var bk = brandKeys();
+  var ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  var pm = sumData(bk, ck, PREV);
+  renderKPIs(cm, pm);
+  buildMetricSelector();
+  renderChart(cm, ck);
+  renderRoasCvr(cm, ck);
+  renderTable(cm, ck);
+}
+
+function setBrand(btn) {
+  var tabs = document.querySelectorAll('#brandTabs .tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  btn.classList.add('active');
+  S.brand = btn.getAttribute('data-brand');
+  S.sub = 'all';
+  document.getElementById('subRowSkechers').style.display = S.brand === 'skechers' ? 'flex' : 'none';
+  document.getElementById('subRowHyper').style.display    = S.brand === 'hyper'    ? 'flex' : 'none';
+  var stabs = document.querySelectorAll('.sub-tab');
+  for (var i = 0; i < stabs.length; i++) stabs[i].classList.toggle('active', stabs[i].getAttribute('data-sub') === 'all');
+  tableSort = {key: null, asc: true};
+  buildColDropdown();
+  renderWithData();
+}
+
+function setSub(btn, brand) {
+  var rowId = brand === 'skechers' ? 'subRowSkechers' : 'subRowHyper';
+  var stabs = document.querySelectorAll('#' + rowId + ' .sub-tab');
+  for (var i = 0; i < stabs.length; i++) stabs[i].classList.remove('active');
+  btn.classList.add('active');
+  S.sub = btn.getAttribute('data-sub');
+  renderWithData();
+}
+
+function setCh(btn) {
+  var tabs = document.querySelectorAll('#chTabs .tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  btn.classList.add('active');
+  S.ch = btn.getAttribute('data-ch');
+  renderWithData();
+}
+
+function setPreset(btn, days) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var to = new Date();
+  var from = new Date();
+  from.setDate(to.getDate() - days + 1);
+  document.getElementById('dateFrom').value = from.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = to.toISOString().slice(0, 10);
+  updateLabel();
+  sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
+  renderWithData();
+}
+
+function applyRange() {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  updateLabel();
+  sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
+  renderWithData();
+}
+
+function updateLabel() {
+  var f = document.getElementById('dateFrom').value;
+  var t = document.getElementById('dateTo').value;
+  document.getElementById('rangeLabel').textContent = f.replace(/-/g, '.') + ' — ' + t.replace(/-/g, '.');
+}
+
+buildMetricSelector();
+buildColDropdown();
+renderWithData();
+</script>
+</body>
+</html>
