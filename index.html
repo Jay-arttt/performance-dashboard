@@ -1595,19 +1595,27 @@ function _renderBudgetBars(ym, budgets) {
     // 예산은 월 전체 기준 (일할 계산 없이 월 예산 그대로 표시)
     var mDays = monthDays(ym + '-01');
 
-    var BUDGET_BRANDS_LIST = [
-      {key:'skechers_official', label:'스케쳐스 공식몰'},
-      {key:'skechers_app',      label:'스케쳐스 앱'},
-      {key:'minoxell',          label:'마이녹셀'},
-      {key:'oliveyoung',        label:'올리브영'},
-      {key:'careerbud',         label:'커리어벗'},
-      {key:'kitchenaid',        label:'키친에이드'},
-      {key:'ecovacs',           label:'에코백스'},
-      {key:'anova',             label:'아노바'}
+    // 브랜드 > 하위 > 매체 계층 구조 정의 (매체 순서: meta → nsa → ngfa → google)
+    var BUDGET_STRUCTURE = [
+      { brand:'스케쳐스', subs:[
+        { label:'공식몰', key:'skechers_official', chs:['nsa','google'] },
+        { label:'앱',     key:'skechers_app',      chs:['google'] }
+      ]},
+      { brand:'마이녹셀', subs:[
+        { label:'마이녹셀', key:'minoxell',    chs:['meta','nsa','ngfa'] },
+        { label:'올리브영', key:'oliveyoung',  chs:['meta','ngfa'] }
+      ]},
+      { brand:'커리어벗', subs:[
+        { label:'', key:'careerbud', chs:['meta','ngfa','google'] }
+      ]},
+      { brand:'하이퍼', subs:[
+        { label:'키친에이드', key:'kitchenaid', chs:['nsa','ngfa'] },
+        { label:'에코백스',   key:'ecovacs',    chs:['nsa','ngfa'] },
+        { label:'아노바',     key:'anova',      chs:['nsa','ngfa'] }
+      ]}
     ];
 
-    var visibleBrands = BUDGET_BRANDS_LIST.filter(function(b){ return bk.indexOf(b.key) !== -1; });
-    var visibleChs    = BUDGET_CHS.filter(function(c){ return ck.indexOf(c.key) !== -1; });
+    var CH_LABEL_MAP = {meta:'Meta', nsa:'N.SA', ngfa:'N.GFA', google:'Google'};
 
     var rows = [];
     // 예산 달의 1일~말일
@@ -1624,39 +1632,41 @@ function _renderBudgetBars(ym, budgets) {
       'careerbud__meta':           0.183
     };
 
-    for (var bi = 0; bi < visibleBrands.length; bi++) {
-      var br = visibleBrands[bi];
-      for (var ci = 0; ci < visibleChs.length; ci++) {
-        var ch = visibleChs[ci];
-        var storageKey  = br.key + '__' + ch.key;
-        var monthBudget = budgets[storageKey] || 0;
-        if (!monthBudget) continue;
+    for (var si = 0; si < BUDGET_STRUCTURE.length; si++) {
+      var brandGroup = BUDGET_STRUCTURE[si];
+      for (var sj = 0; sj < brandGroup.subs.length; sj++) {
+        var sub = brandGroup.subs[sj];
+        for (var sk = 0; sk < sub.chs.length; sk++) {
+          var chKey = sub.chs[sk];
+          var storageKey  = sub.key + '__' + chKey;
+          var monthBudget = budgets[storageKey] || 0;
+          if (!monthBudget) continue;
 
-        var spent = 0;
-        var parsed = sheetsCache.skechers; // 날짜별 raw 데이터
+          var spent = 0;
+          var parsed = sheetsCache.skechers;
 
-        if (parsed && br.key === 'skechers_official') {
-          var byDateMap = ch.key === 'nsa' ? parsed.nsa : parsed.googleOfficial;
-          spent = sumByDateRange(byDateMap || {}, budgetDateFrom, budgetDateTo).cost || 0;
-        } else if (parsed && br.key === 'skechers_app') {
-          var byDateMap2 = ch.key === 'google' ? parsed.googleApp : {};
-          spent = sumByDateRange(byDateMap2 || {}, budgetDateFrom, budgetDateTo).cost || 0;
-        } else {
-          // 실제 데이터 없는 브랜드는 RAW 샘플
-          var chData = sumData([br.key], [ch.key], RAW);
-          spent = aggCalc(chData).cost || 0;
+          if (parsed && sub.key === 'skechers_official') {
+            var byDateMap = chKey === 'nsa' ? parsed.nsa : parsed.googleOfficial;
+            spent = sumByDateRange(byDateMap || {}, budgetDateFrom, budgetDateTo).cost || 0;
+          } else if (parsed && sub.key === 'skechers_app') {
+            var byDateMap2 = chKey === 'google' ? parsed.googleApp : {};
+            spent = sumByDateRange(byDateMap2 || {}, budgetDateFrom, budgetDateTo).cost || 0;
+          } else {
+            var chData = sumData([sub.key], [chKey], RAW);
+            spent = aggCalc(chData).cost || 0;
+          }
+
+          var feeRate = FEE_RATES[storageKey] || 0;
+          if (feeRate > 0) spent = Math.round(spent * (1 + feeRate));
+
+          rows.push({
+            brand:       brandGroup.brand,
+            sub:         sub.label,
+            ch:          CH_LABEL_MAP[chKey] || chKey,
+            monthBudget: monthBudget,
+            spent:       spent
+          });
         }
-
-        // 수수료 적용 (예산 현황 전용)
-        var feeRate = FEE_RATES[storageKey] || 0;
-        if (feeRate > 0) spent = Math.round(spent * (1 + feeRate));
-
-        rows.push({
-          brand: br.label,
-          ch: ch.label,
-          monthBudget: monthBudget,
-          spent: spent
-        });
       }
     }
 
@@ -1683,52 +1693,50 @@ function _renderBudgetBars(ym, budgets) {
     }
     var remainDays = totalDays - elapsedDays;
 
-    var W = ['auto','auto','110px','110px','110px','70px','110px','110px'];
-    var heads = ['브랜드','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)'];
+    var heads = ['브랜드','하위','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)'];
     var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:11px">';
 
     // 헤더
     html += '<tr>';
     for (var h = 0; h < heads.length; h++) {
-      html += '<th style="padding:10px 16px;text-align:' + (h < 2 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
+      html += '<th style="padding:10px 16px;text-align:' + (h < 3 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
     }
     html += '</tr>';
 
-    // 브랜드별 그룹핑
+    // 행 렌더링
     var lastBrandLabel = '';
+    var lastSubLabel   = '';
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      var budget   = r.monthBudget;
-      var spent2   = r.spent;
-      var plan     = totalDays > 0 ? Math.round(budget / totalDays * elapsedDays) : 0;
-      var pctVal   = budget > 0 ? spent2 / budget * 100 : 0;
-      var remain   = budget - spent2;
+      var budget    = r.monthBudget;
+      var spent2    = r.spent;
+      var plan      = totalDays > 0 ? Math.round(budget / totalDays * elapsedDays) : 0;
+      var pctVal    = budget > 0 ? spent2 / budget * 100 : 0;
+      var remain    = budget - spent2;
       var dailyGoal = remainDays > 0 ? Math.round(remain / remainDays) : 0;
-      var isOver   = spent2 > budget;
-      var pctColor = isOver ? 'var(--down)' : pctVal > 80 ? 'var(--google)' : 'var(--up)';
 
-      var showBrand = (r.brand !== lastBrandLabel);
-      lastBrandLabel = r.brand;
-
-      // 소진율 채우기 색상
       var fillColor = pctVal >= 100 ? '#ef4444' : pctVal >= 80 ? '#f97316' : '#22c55e';
       var fillWidth = Math.min(pctVal, 100).toFixed(1);
 
-      // 소진액 색상: 소진 계획 대비 ±5%
       var spentColor = 'var(--text)';
       if (plan > 0) {
         var diffPct = (spent2 - plan) / plan * 100;
-        if (diffPct >= 5)       spentColor = 'var(--down)';   // 5% 이상 초과 → 빨강
-        else if (diffPct <= -5) spentColor = 'var(--google)'; // 5% 이상 미달 → 주황
+        if (diffPct >= 5)       spentColor = 'var(--down)';
+        else if (diffPct <= -5) spentColor = 'var(--google)';
       }
 
+      var showBrand = (r.brand !== lastBrandLabel);
+      var showSub   = (r.brand + '__' + r.sub !== lastBrandLabel + '__' + lastSubLabel);
+      lastBrandLabel = r.brand;
+      lastSubLabel   = r.sub;
+
       html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:11px 16px;color:var(--text);white-space:nowrap">' + (showBrand ? r.brand : '') + '</td>';
+      html += '<td style="padding:11px 16px;color:var(--text);white-space:nowrap;font-weight:' + (showBrand ? '500' : '400') + '">' + (showBrand ? r.brand : '') + '</td>';
+      html += '<td style="padding:11px 16px;color:var(--text);opacity:.75;white-space:nowrap">' + (showSub ? r.sub : '') + '</td>';
       html += '<td style="padding:11px 16px;color:var(--text);opacity:.7;white-space:nowrap">' + r.ch + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:var(--text)">₩' + budget.toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:var(--text);opacity:.75">₩' + plan.toLocaleString('ko-KR') + '</td>';
-      // 소진율: 배경 채우기
       html += '<td style="padding:7px 16px;text-align:right;min-width:90px">';
       html += '<div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3);min-width:80px">';
       html += '<div style="position:absolute;left:0;top:0;height:100%;width:' + fillWidth + '%;background:' + fillColor + ';opacity:.25;border-radius:4px"></div>';
