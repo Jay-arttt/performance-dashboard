@@ -1729,8 +1729,8 @@ function _renderBudgetBars(ym, budgets) {
       html += '<td style="padding:11px 16px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:var(--text);opacity:.75">₩' + plan.toLocaleString('ko-KR') + '</td>';
       // 소진율: 배경 채우기
-      html += '<td style="padding:7px 16px;text-align:right">';
-      html += '<div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3)">';
+      html += '<td style="padding:7px 16px;text-align:right;min-width:90px">';
+      html += '<div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3);min-width:80px">';
       html += '<div style="position:absolute;left:0;top:0;height:100%;width:' + fillWidth + '%;background:' + fillColor + ';opacity:.25;border-radius:4px"></div>';
       html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-weight:500;color:' + fillColor + '">' + pctVal.toFixed(1) + '%</div>';
       html += '</div></td>';
