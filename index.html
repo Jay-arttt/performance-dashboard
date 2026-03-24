@@ -1308,6 +1308,32 @@ function getYearMonth(dateStr) {
   return dateStr ? dateStr.slice(0, 7) : '';
 }
 
+// CSV 한 줄을 쉼표 구분으로 파싱 (따옴표 안의 쉼표 처리)
+function splitCSVLine(line) {
+  var cols = [];
+  var cur = '';
+  var inQuote = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') {
+      inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      cols.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+// 예산 숫자 추출 (₩, 공백, 쉼표 제거)
+function parseBudgetNum(str) {
+  var clean = str.replace(/₩/g,'').replace(/\s/g,'').replace(/,/g,'').replace(/[^0-9.]/g,'');
+  return Number(clean) || 0;
+}
+
 // 시트 브랜드명 + 매체명 → 대시보드 키 매핑 테이블
 var BUDGET_MAP = [
   {sheetBrand:'스케쳐스',         sheetCh:'SA',               brand:'skechers_official', ch:'nsa'},
@@ -1335,31 +1361,31 @@ function parseBudgetCSV(text) {
   var lines = text.trim().split('\n');
   if (lines.length < 2) return {};
 
-  var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+  var headers = splitCSVLine(lines[0]);
   var iBrand  = headers.indexOf('브랜드');
   var iCh     = headers.indexOf('매체');
   var iBudget = headers.indexOf('예산');
-  if (iBrand < 0 || iCh < 0 || iBudget < 0) return {};
+  if (iBrand < 0 || iCh < 0 || iBudget < 0) {
+    console.warn('예산 시트 헤더 못 찾음:', headers);
+    return {};
+  }
 
   var out = {};
   var lastBrand = '';
 
   for (var i = 1; i < lines.length; i++) {
-    var cols = lines[i].split(',').map(function(c){ return c.trim().replace(/^"|"$/g,'').replace(/₩/g,'').replace(/\s/g,''); });
-    // 브랜드 빈칸이면 위 행 브랜드 이어받기
-    if (cols[iBrand]) lastBrand = cols[iBrand];
+    var cols = splitCSVLine(lines[i]);
+    if (cols[iBrand]) lastBrand = cols[iBrand].trim();
     var sheetBrand = lastBrand;
-    var sheetCh    = cols[iCh] || '';
-    var rawBudget  = (cols[iBudget] || '').replace(/,/g,'').replace(/[^0-9]/g,'');
-    var budget     = Number(rawBudget) || 0;
+    var sheetCh    = (cols[iCh] || '').trim();
+    var budget     = parseBudgetNum(cols[iBudget] || '');
     if (!budget) continue;
 
-    // 매핑 테이블에서 찾기
     for (var m = 0; m < BUDGET_MAP.length; m++) {
       var rule = BUDGET_MAP[m];
       if (rule.sheetBrand === sheetBrand && rule.sheetCh === sheetCh) {
         var key = rule.brand + '__' + rule.ch;
-        out[key] = (out[key] || 0) + budget; // 같은 키 여러 행이면 합산
+        out[key] = (out[key] || 0) + budget;
         break;
       }
     }
