@@ -172,7 +172,7 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 .budget-input-label { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.5px; }
 .budget-input-field { font-family:'DM Mono',monospace; font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text); width:140px; outline:none; }
 .budget-input-field:focus { border-color:var(--text); }
-.budget-bars { display:flex; flex-direction:column; gap:10px; }
+.budget-bars { margin-top:4px; }
 .budget-row { display:flex; align-items:center; gap:12px; }
 .budget-row-label { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); width:80px; flex-shrink:0; }
 .budget-bar-wrap { flex:1; height:8px; background:var(--bg3); border-radius:4px; overflow:hidden; }
@@ -1652,7 +1652,8 @@ function _renderBudgetBars(ym, budgets) {
         if (feeRate > 0) spent = Math.round(spent * (1 + feeRate));
 
         rows.push({
-          label: br.label + ' · ' + ch.label,
+          brand: br.label,
+          ch: ch.label,
           monthBudget: monthBudget,
           spent: spent
         });
@@ -1664,20 +1665,63 @@ function _renderBudgetBars(ym, budgets) {
       return;
     }
 
-    var html = '';
+    // 전일까지 일수 계산
+    var today = new Date();
+    var budgetYear  = parseInt(budgetPeriod.year, 10);
+    var budgetMonth = parseInt(budgetPeriod.month, 10);
+    var totalDays   = new Date(budgetYear, budgetMonth, 0).getDate();
+    // 전일 = 오늘-1, 단 해당 월 기준
+    var yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    var elapsedDays;
+    if (yesterday.getFullYear() === budgetYear && yesterday.getMonth()+1 === budgetMonth) {
+      elapsedDays = yesterday.getDate();
+    } else if (yesterday > new Date(budgetYear, budgetMonth, 0)) {
+      elapsedDays = totalDays; // 해당 월이 지난 경우 전체
+    } else {
+      elapsedDays = 0;
+    }
+    var remainDays = totalDays - elapsedDays;
+
+    var W = ['auto','auto','110px','110px','110px','70px','110px','110px'];
+    var heads = ['브랜드','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)'];
+    var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:11px">';
+
+    // 헤더
+    html += '<tr>';
+    for (var h = 0; h < heads.length; h++) {
+      html += '<th style="padding:7px 12px;text-align:' + (h < 2 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
+    }
+    html += '</tr>';
+
+    // 브랜드별 그룹핑
+    var lastBrandLabel = '';
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      var pct     = r.monthBudget > 0 ? Math.min(r.spent / r.monthBudget * 100, 100) : 0;
-      var pctReal = r.monthBudget > 0 ? (r.spent / r.monthBudget * 100).toFixed(1) : '0.0';
-      var isOver  = r.spent > r.monthBudget;
-      var color   = isOver ? 'var(--down)' : r.spent / r.monthBudget > 0.8 ? 'var(--google)' : 'var(--up)';
-      html += '<div class="budget-row">';
-      html += '<div class="budget-row-label" style="width:160px">' + r.label + '</div>';
-      html += '<div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
-      html += '<div class="budget-row-nums">₩' + Math.round(r.spent).toLocaleString('ko-KR') + ' / ₩' + r.monthBudget.toLocaleString('ko-KR') + '</div>';
-      html += '<div class="budget-row-pct" style="color:' + color + '">' + pctReal + '%</div>';
-      html += '</div>';
+      var budget   = r.monthBudget;
+      var spent2   = r.spent;
+      var plan     = totalDays > 0 ? Math.round(budget / totalDays * elapsedDays) : 0;
+      var pctVal   = budget > 0 ? spent2 / budget * 100 : 0;
+      var remain   = budget - spent2;
+      var dailyGoal = remainDays > 0 ? Math.round(remain / remainDays) : 0;
+      var isOver   = spent2 > budget;
+      var pctColor = isOver ? 'var(--down)' : pctVal > 80 ? 'var(--google)' : 'var(--up)';
+
+      var showBrand = (r.brand !== lastBrandLabel);
+      lastBrandLabel = r.brand;
+
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px 12px;color:var(--text);white-space:nowrap">' + (showBrand ? r.brand : '') + '</td>';
+      html += '<td style="padding:8px 12px;color:var(--muted);white-space:nowrap">' + r.ch + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right">₩' + budget.toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--muted)">₩' + plan.toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;font-weight:500;color:' + pctColor + '">' + pctVal.toFixed(1) + '%</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:' + (remain < 0 ? 'var(--down)' : 'var(--text)') + '">₩' + Math.round(remain).toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:' + (dailyGoal < 0 ? 'var(--down)' : 'var(--text)') + '">' + (remainDays > 0 ? '₩' + dailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
+      html += '</tr>';
     }
+    html += '</table></div>';
     barsEl.innerHTML = html;
 }
 
