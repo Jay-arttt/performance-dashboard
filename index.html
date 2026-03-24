@@ -1710,13 +1710,30 @@ function _renderBudgetBars(ym, budgets) {
       var showBrand = (r.brand !== lastBrandLabel);
       lastBrandLabel = r.brand;
 
+      // 소진율 채우기 색상
+      var fillColor = pctVal >= 100 ? '#ef4444' : pctVal >= 80 ? '#f97316' : '#22c55e';
+      var fillWidth = Math.min(pctVal, 100).toFixed(1);
+
+      // 소진액 색상: 소진 계획 대비 ±5%
+      var spentColor = 'var(--text)';
+      if (plan > 0) {
+        var diffPct = (spent2 - plan) / plan * 100;
+        if (diffPct >= 5)       spentColor = 'var(--down)';   // 5% 이상 초과 → 빨강
+        else if (diffPct <= -5) spentColor = 'var(--google)'; // 5% 이상 미달 → 주황
+      }
+
       html += '<tr style="border-bottom:1px solid var(--border)">';
       html += '<td style="padding:8px 12px;color:var(--text);white-space:nowrap">' + (showBrand ? r.brand : '') + '</td>';
-      html += '<td style="padding:8px 12px;color:var(--muted);white-space:nowrap">' + r.ch + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right">₩' + budget.toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;color:var(--muted)">₩' + plan.toLocaleString('ko-KR') + '</td>';
-      html += '<td style="padding:8px 12px;text-align:right;font-weight:500;color:' + pctColor + '">' + pctVal.toFixed(1) + '%</td>';
+      html += '<td style="padding:8px 12px;color:var(--text);opacity:.7;white-space:nowrap">' + r.ch + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--text)">₩' + budget.toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--text);opacity:.75">₩' + plan.toLocaleString('ko-KR') + '</td>';
+      // 소진율: 배경 채우기
+      html += '<td style="padding:4px 12px;text-align:right">';
+      html += '<div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3)">';
+      html += '<div style="position:absolute;left:0;top:0;height:100%;width:' + fillWidth + '%;background:' + fillColor + ';opacity:.25;border-radius:4px"></div>';
+      html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-weight:500;color:' + fillColor + '">' + pctVal.toFixed(1) + '%</div>';
+      html += '</div></td>';
       html += '<td style="padding:8px 12px;text-align:right;color:' + (remain < 0 ? 'var(--down)' : 'var(--text)') + '">₩' + Math.round(remain).toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:8px 12px;text-align:right;color:' + (dailyGoal < 0 ? 'var(--down)' : 'var(--text)') + '">' + (remainDays > 0 ? '₩' + dailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
       html += '</tr>';
