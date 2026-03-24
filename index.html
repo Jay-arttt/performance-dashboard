@@ -199,6 +199,8 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
     <div class="preset-group">
       <button class="date-btn" onclick="setYesterday(this)">어제</button>
       <button class="date-btn" onclick="setLastWeek(this)">지난주</button>
+      <button class="date-btn" onclick="setThisMonth(this)">이번달</button>
+      <button class="date-btn" onclick="setLastMonth(this)">지난달</button>
       <button class="date-btn" onclick="setPreset(this,7)">7일</button>
       <button class="date-btn active" onclick="setPreset(this,30)">30일</button>
       <button class="date-btn" onclick="setPreset(this,90)">90일</button>
@@ -1228,6 +1230,60 @@ function setCh(btn) {
   renderWithData();
 }
 
+function setThisMonth(btn) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var today = new Date();
+  var yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  var from = today.getFullYear() + '-' + (today.getMonth()+1 < 10 ? '0' : '') + (today.getMonth()+1) + '-01';
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
+  updateLabel();
+  saveDateRange();
+  sheetsCache.skechers = null;
+  renderWithData();
+}
+
+function setLastMonth(btn) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var today = new Date();
+  var firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  var lastOfLastMonth  = new Date(firstOfThisMonth - 1);
+  var firstOfLastMonth = new Date(lastOfLastMonth.getFullYear(), lastOfLastMonth.getMonth(), 1);
+  document.getElementById('dateFrom').value = firstOfLastMonth.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = lastOfLastMonth.toISOString().slice(0, 10);
+  updateLabel();
+  saveDateRange();
+  sheetsCache.skechers = null;
+  renderWithData();
+}
+
+// 날짜 범위 localStorage 저장/복원
+function saveDateRange() {
+  try {
+    localStorage.setItem('dashDateFrom', document.getElementById('dateFrom').value);
+    localStorage.setItem('dashDateTo',   document.getElementById('dateTo').value);
+  } catch(e) {}
+}
+
+function restoreDateRange() {
+  try {
+    var from = localStorage.getItem('dashDateFrom');
+    var to   = localStorage.getItem('dashDateTo');
+    if (from && to) {
+      document.getElementById('dateFrom').value = from;
+      document.getElementById('dateTo').value   = to;
+      updateLabel();
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 function setLastWeek(btn) {
   var btns = document.querySelectorAll('.date-btn');
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
@@ -1246,6 +1302,7 @@ function setLastWeek(btn) {
   document.getElementById('dateFrom').value = lastMonday.toISOString().slice(0, 10);
   document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
   updateLabel();
+  saveDateRange();
   sheetsCache.skechers = null;
   renderWithData();
 }
@@ -1260,6 +1317,7 @@ function setYesterday(btn) {
   document.getElementById('dateFrom').value = d;
   document.getElementById('dateTo').value   = d;
   updateLabel();
+  saveDateRange();
   sheetsCache.skechers = null;
   renderWithData();
 }
@@ -1274,6 +1332,7 @@ function setPreset(btn, days) {
   document.getElementById('dateFrom').value = from.toISOString().slice(0, 10);
   document.getElementById('dateTo').value   = to.toISOString().slice(0, 10);
   updateLabel();
+  saveDateRange();
   sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
@@ -1282,6 +1341,7 @@ function applyRange() {
   var btns = document.querySelectorAll('.date-btn');
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
+  saveDateRange();
   sheetsCache.skechers = null; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
@@ -1615,6 +1675,7 @@ function saveBudget() {}
 buildMetricSelector();
 buildColDropdown();
 buildBudgetPeriodSelector();
+restoreDateRange();
 renderWithData();
 </script>
 </body>
