@@ -215,10 +215,17 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
   <div class="tab-group" id="brandTabs">
     <button class="tab active" data-brand="all" onclick="setBrand(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
     <button class="tab" data-brand="skechers" onclick="setBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
-    <button class="tab" data-brand="mynoxcel" onclick="setBrand(this)"><span class="dot" style="background:#ea580c"></span>마이녹셀</button>
+    <button class="tab" data-brand="minoxell" onclick="setBrand(this)"><span class="dot" style="background:#ea580c"></span>마이녹셀</button>
     <button class="tab" data-brand="careerbud" onclick="setBrand(this)"><span class="dot" style="background:#ca8a04"></span>커리어벗</button>
     <button class="tab" data-brand="hyper" onclick="setBrand(this)"><span class="dot" style="background:var(--hyper)"></span>하이퍼</button>
   </div>
+</div>
+
+<div class="subbrand-row" id="subRowMynoxcel" style="display:none">
+  <span class="subbrand-label">마이녹셀 하위</span>
+  <button class="sub-tab active" data-sub="all" onclick="setSub(this,'minoxell')">전체</button>
+  <button class="sub-tab" data-sub="minoxell" onclick="setSub(this,'minoxell')">마이녹셀</button>
+  <button class="sub-tab" data-sub="oliveyoung" onclick="setSub(this,'minoxell')">올리브영</button>
 </div>
 
 <div class="subbrand-row" id="subRowSkechers" style="display:none">
@@ -313,11 +320,15 @@ var RAW = {
     ngfa:   {cost:280000,  revenue:1036000,  clicks:2400,  impressions:132000,  conversions:72},
     nsa:    {cost:340000,  revenue:1530000,  clicks:3800,  impressions:81000,   conversions:114}
   },
-  mynoxcel:   {
+  minoxell:   {
     meta:   {cost:980000,  revenue:3920000,  clicks:7800,  impressions:260000,  conversions:234},
     google: {cost:720000,  revenue:2376000,  clicks:4800,  impressions:192000,  conversions:144},
     ngfa:   {cost:480000,  revenue:1680000,  clicks:4000,  impressions:220000,  conversions:120},
     nsa:    {cost:560000,  revenue:2520000,  clicks:6200,  impressions:134000,  conversions:186}
+  },
+  oliveyoung: {
+    meta:   {cost:1370000, revenue:5480000,  clicks:9200,  impressions:310000,  conversions:276},
+    ngfa:   {cost:130000,  revenue:520000,   clicks:2100,  impressions:180000,  conversions:63}
   },
   careerbud:  {
     meta:   {cost:760000,  revenue:3040000,  clicks:6100,  impressions:200000,  conversions:183},
@@ -549,9 +560,10 @@ var PREV = {};
   }
 })();
 
-var HYPER_SUBS    = ['kitchenaid', 'ecovacs', 'anova'];
-var SKECHERS_SUBS = ['skechers_official', 'skechers_app'];
-var ALL_BRANDS = ['skechers_official', 'skechers_app', 'mynoxcel', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
+var HYPER_SUBS     = ['kitchenaid', 'ecovacs', 'anova'];
+var SKECHERS_SUBS  = ['skechers_official', 'skechers_app'];
+var MYNOXCEL_SUBS  = ['minoxell', 'oliveyoung'];
+var ALL_BRANDS = ['skechers_official', 'skechers_app', 'minoxell', 'oliveyoung', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
 var CHS = ['meta', 'google', 'ngfa', 'nsa'];
 var CH_NAME  = {meta: 'Meta', google: 'Google Ads', ngfa: '네이버 GFA', nsa: '네이버 SA'};
 var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)'};
@@ -587,6 +599,7 @@ function brandKeys() {
   if (S.brand === 'all') return ALL_BRANDS;
   if (S.brand === 'hyper')    return S.sub === 'all' ? HYPER_SUBS    : [S.sub];
   if (S.brand === 'skechers') return S.sub === 'all' ? SKECHERS_SUBS : [S.sub];
+  if (S.brand === 'minoxell') return S.sub === 'all' ? MYNOXCEL_SUBS : [S.sub];
   return [S.brand];
 }
 
@@ -1158,8 +1171,9 @@ function setBrand(btn) {
   btn.classList.add('active');
   S.brand = btn.getAttribute('data-brand');
   S.sub = 'all';
-  document.getElementById('subRowSkechers').style.display = S.brand === 'skechers' ? 'flex' : 'none';
-  document.getElementById('subRowHyper').style.display    = S.brand === 'hyper'    ? 'flex' : 'none';
+  document.getElementById('subRowSkechers').style.display  = S.brand === 'skechers'  ? 'flex' : 'none';
+  document.getElementById('subRowHyper').style.display     = S.brand === 'hyper'     ? 'flex' : 'none';
+  document.getElementById('subRowMynoxcel').style.display  = S.brand === 'minoxell'  ? 'flex' : 'none';
   var stabs = document.querySelectorAll('.sub-tab');
   for (var i = 0; i < stabs.length; i++) stabs[i].classList.toggle('active', stabs[i].getAttribute('data-sub') === 'all');
   tableSort = {key: null, asc: true};
@@ -1168,7 +1182,7 @@ function setBrand(btn) {
 }
 
 function setSub(btn, brand) {
-  var rowId = brand === 'skechers' ? 'subRowSkechers' : 'subRowHyper';
+  var rowId = brand === 'skechers' ? 'subRowSkechers' : brand === 'minoxell' ? 'subRowMynoxcel' : 'subRowHyper';
   var stabs = document.querySelectorAll('#' + rowId + ' .sub-tab');
   for (var i = 0; i < stabs.length; i++) stabs[i].classList.remove('active');
   btn.classList.add('active');
@@ -1351,14 +1365,29 @@ var BUDGET_MAP = [
   {sheetBrand:'하이퍼_아노바',     sheetCh:'GFA_애드',          brand:'anova',             ch:'ngfa'},
   {sheetBrand:'커리어벗',          sheetCh:'구글',              brand:'careerbud',         ch:'google'},
   {sheetBrand:'커리어벗',          sheetCh:'메타',              brand:'careerbud',         ch:'meta'},
-  {sheetBrand:'현대약품',          sheetCh:'네이버 SA',         brand:'mynoxcel',          ch:'nsa'},
-  {sheetBrand:'현대약품',          sheetCh:'네이버 GFA',        brand:'mynoxcel',          ch:'ngfa'},
-  {sheetBrand:'현대약품',          sheetCh:'메타',              brand:'mynoxcel',          ch:'meta'}
+  {sheetBrand:'현대약품',          sheetCh:'네이버 SA',         brand:'minoxell',          ch:'nsa'},
+  {sheetBrand:'현대약품',          sheetCh:'네이버 GFA',        brand:'minoxell',          ch:'ngfa'},
+  {sheetBrand:'현대약품',          sheetCh:'메타',              brand:'minoxell',          ch:'meta'},
+  {sheetBrand:'현대약품',          sheetCh:'올리브영 메타',      brand:'oliveyoung',        ch:'meta'},
+  {sheetBrand:'현대약품',          sheetCh:'올리브영 GFA (트래픽)', brand:'oliveyoung',     ch:'ngfa'}
 ];
+
+// 유효한 브랜드명 목록 (소계/기타 행 걸러내기 위해)
+var VALID_SHEET_BRANDS = ['스케쳐스','하이퍼_키친에이드','하이퍼_에코백스','하이퍼_아노바','커리어벗','현대약품','올리브영'];
 
 // CSV에서 예산 데이터 파싱 → { 'brandKey__chKey': 월예산 }
 function parseBudgetCSV(text) {
-  var lines = text.trim().split('\n');
+  // 줄바꿈이 포함된 셀 처리: 따옴표 안의 \n 제거 후 파싱
+  var cleaned = '';
+  var inQ = false;
+  for (var ci = 0; ci < text.length; ci++) {
+    var c = text[ci];
+    if (c === '"') { inQ = !inQ; cleaned += c; }
+    else if ((c === '\n' || c === '\r') && inQ) { cleaned += ' '; } // 셀 안 줄바꿈 → 공백
+    else { cleaned += c; }
+  }
+
+  var lines = cleaned.trim().split('\n');
   if (lines.length < 2) return {};
 
   var headers = splitCSVLine(lines[0]);
@@ -1375,11 +1404,20 @@ function parseBudgetCSV(text) {
 
   for (var i = 1; i < lines.length; i++) {
     var cols = splitCSVLine(lines[i]);
-    if (cols[iBrand]) lastBrand = cols[iBrand].trim();
+    var rawBrand = (cols[iBrand] || '').trim();
+
+    // 유효한 브랜드명이면 업데이트, 소계/기타면 lastBrand 유지
+    if (rawBrand && VALID_SHEET_BRANDS.indexOf(rawBrand) !== -1) {
+      lastBrand = rawBrand;
+    } else if (rawBrand && rawBrand.indexOf('소계') !== -1) {
+      lastBrand = ''; // 소계 행 이후 브랜드 초기화
+      continue;
+    }
+
     var sheetBrand = lastBrand;
     var sheetCh    = (cols[iCh] || '').trim();
     var budget     = parseBudgetNum(cols[iBudget] || '');
-    if (!budget) continue;
+    if (!budget || !sheetBrand || !sheetCh) continue;
 
     for (var m = 0; m < BUDGET_MAP.length; m++) {
       var rule = BUDGET_MAP[m];
@@ -1423,7 +1461,8 @@ function renderBudgetSection() {
     var BUDGET_BRANDS_LIST = [
       {key:'skechers_official', label:'스케쳐스 공식몰'},
       {key:'skechers_app',      label:'스케쳐스 앱'},
-      {key:'mynoxcel',          label:'마이녹셀'},
+      {key:'minoxell',          label:'마이녹셀'},
+      {key:'oliveyoung',        label:'올리브영'},
       {key:'careerbud',         label:'커리어벗'},
       {key:'kitchenaid',        label:'키친에이드'},
       {key:'ecovacs',           label:'에코백스'},
