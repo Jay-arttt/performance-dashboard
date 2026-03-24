@@ -1663,6 +1663,7 @@ function _renderBudgetBars(ym, budgets) {
             brand:       brandGroup.brand,
             sub:         sub.label,
             ch:          CH_LABEL_MAP[chKey] || chKey,
+            storageKey:  storageKey,
             monthBudget: monthBudget,
             spent:       spent
           });
@@ -1693,7 +1694,7 @@ function _renderBudgetBars(ym, budgets) {
     }
     var remainDays = totalDays - elapsedDays;
 
-    var heads = ['브랜드','하위','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)'];
+    var heads = ['브랜드','하위','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)','소진 목표액(일, 수수료 제외)'];
     var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:11px">';
 
     // 헤더
@@ -1744,6 +1745,13 @@ function _renderBudgetBars(ym, budgets) {
       html += '</div></td>';
       html += '<td style="padding:11px 16px;text-align:right;color:' + (remain < 0 ? 'var(--down)' : 'var(--text)') + '">₩' + Math.round(remain).toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:' + (dailyGoal < 0 ? 'var(--down)' : 'var(--text)') + '">' + (remainDays > 0 ? '₩' + dailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
+
+      // 수수료 제외 소진 목표액(일)
+      var netDailyGoal = dailyGoal;
+      var feeR = FEE_RATES[r.storageKey] || 0;
+      if (feeR > 0) netDailyGoal = Math.round(dailyGoal / (1 + feeR));
+      html += '<td style="padding:11px 16px;text-align:right;color:' + (netDailyGoal < 0 ? 'var(--down)' : 'var(--muted)') + '">' + (remainDays > 0 ? '₩' + netDailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
+
       html += '</tr>';
     }
     html += '</table></div>';
