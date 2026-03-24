@@ -173,6 +173,8 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
   </div>
   <div class="date-controls">
     <div class="preset-group">
+      <button class="date-btn" onclick="setYesterday(this)">어제</button>
+      <button class="date-btn" onclick="setLastWeek(this)">지난주</button>
       <button class="date-btn" onclick="setPreset(this,7)">7일</button>
       <button class="date-btn active" onclick="setPreset(this,30)">30일</button>
       <button class="date-btn" onclick="setPreset(this,90)">90일</button>
@@ -1137,6 +1139,42 @@ function setCh(btn) {
   for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
   btn.classList.add('active');
   S.ch = btn.getAttribute('data-ch');
+  renderWithData();
+}
+
+function setLastWeek(btn) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var today = new Date();
+  var day = today.getDay(); // 0=일, 1=월 ... 6=토
+  // 이번주 월요일
+  var thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() - (day === 0 ? 7 : day) + 1);
+  // 지난주 월요일 = 이번주 월요일 - 7
+  var lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+  // 지난주 일요일 = 이번주 월요일 - 1
+  var lastSunday = new Date(thisMonday);
+  lastSunday.setDate(thisMonday.getDate() - 1);
+  document.getElementById('dateFrom').value = lastMonday.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
+  updateLabel();
+  sheetsCache.skechers = null;
+  renderWithData();
+}
+
+function setYesterday(btn) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  var d = yesterday.toISOString().slice(0, 10);
+  document.getElementById('dateFrom').value = d;
+  document.getElementById('dateTo').value   = d;
+  updateLabel();
+  sheetsCache.skechers = null;
   renderWithData();
 }
 
