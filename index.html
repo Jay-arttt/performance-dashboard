@@ -1310,7 +1310,7 @@ var BUDGET_CHS = [
   {key:'nsa',    label:'N.SA'}
 ];
 
-var budgetCache = {};
+var budgetCache = {}; // 월별 캐시 — 페이지 로드 시 초기화
 
 // 예산 기간 상태 (독립적으로 관리)
 var budgetPeriod = {year: '2026', month: '03'};
@@ -1465,6 +1465,13 @@ function parseBudgetCSV(text) {
     var sheetCh    = (cols[iCh] || '').trim();
     var budget     = parseBudgetNum(cols[iBudget] || '');
     if (!budget || !sheetBrand || !sheetCh) continue;
+
+    // 매핑 테이블에 없는 매체명이면 메모 행으로 간주하고 스킵
+    var validCh = false;
+    for (var m = 0; m < BUDGET_MAP.length; m++) {
+      if (BUDGET_MAP[m].sheetCh === sheetCh) { validCh = true; break; }
+    }
+    if (!validCh) continue;
 
     for (var m = 0; m < BUDGET_MAP.length; m++) {
       var rule = BUDGET_MAP[m];
