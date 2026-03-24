@@ -1501,7 +1501,22 @@ function renderBudgetSection() {
   var barsEl = document.getElementById('budgetBars');
   barsEl.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">예산 불러오는 중...</div>';
 
-  loadBudgetForMonth(ym, function(budgets) {
+  // 스케쳐스 시트 데이터가 없으면 먼저 로드
+  function doRender() {
+    loadBudgetForMonth(ym, function(budgets) {
+      _renderBudgetBars(ym, budgets);
+    });
+  }
+
+  if (!sheetsCache.skechers) {
+    loadSkechers(function() { doRender(); });
+  } else {
+    doRender();
+  }
+}
+
+function _renderBudgetBars(ym, budgets) {
+  var barsEl = document.getElementById('budgetBars');
     var bk = brandKeys();
     var ck = chKeys();
     // 예산은 월 전체 기준 (일할 계산 없이 월 예산 그대로 표시)
@@ -1535,16 +1550,17 @@ function renderBudgetSection() {
         var monthBudget = budgets[storageKey] || 0;
         if (!monthBudget) continue;
 
-        // 소진액: 예산 달 전체 기간 기준으로 계산
         var spent = 0;
-        if (sheetsCache.skechers && (br.key === 'skechers_official' || br.key === 'skechers_app')) {
-          // 실제 시트 데이터에서 해당 월 범위로 합산
-          var parsed = sheetsCache.skechers;
-          var byDateMap = ch.key === 'nsa'    ? parsed.nsa :
-                          br.key === 'skechers_app' ? parsed.googleApp : parsed.googleOfficial;
+        var parsed = sheetsCache.skechers; // 날짜별 raw 데이터
+
+        if (parsed && br.key === 'skechers_official') {
+          var byDateMap = ch.key === 'nsa' ? parsed.nsa : parsed.googleOfficial;
           spent = sumByDateRange(byDateMap || {}, budgetDateFrom, budgetDateTo).cost || 0;
+        } else if (parsed && br.key === 'skechers_app') {
+          var byDateMap2 = ch.key === 'google' ? parsed.googleApp : {};
+          spent = sumByDateRange(byDateMap2 || {}, budgetDateFrom, budgetDateTo).cost || 0;
         } else {
-          // 샘플 데이터 브랜드는 RAW 그대로
+          // 실제 데이터 없는 브랜드는 RAW 샘플
           var chData = sumData([br.key], [ch.key], RAW);
           spent = aggCalc(chData).cost || 0;
         }
@@ -1577,7 +1593,6 @@ function renderBudgetSection() {
       html += '</div>';
     }
     barsEl.innerHTML = html;
-  });
 }
 
 // 예산 입력 버튼 숨기기 (Sheets에서 읽어오므로 불필요)
