@@ -282,7 +282,7 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
   <div class="chart-header">
     <span class="chart-title">일별 추이</span>
     <div style="display:flex;align-items:center;gap:12px">
-      <button id="prevWeekBtn" class="date-btn" onclick="togglePrevWeek()" style="font-size:11px;padding:4px 12px;border-radius:6px">전주 비교</button>
+      <button id="prevWeekBtn" class="date-btn" onclick="togglePrevWeek()" style="font-size:11px;padding:4px 12px;border-radius:6px">동기간 비교</button>
       <div class="chart-legend" id="chartLegend"></div>
     </div>
   </div>
@@ -921,7 +921,7 @@ function renderChart(cm, ck) {
     legHtml += '<div class="legend-item"><div class="legend-dot" style="background:' + activeMets[i].color + '"></div>' + activeMets[i].label + '</div>';
   }
   if (prevWeekMode) {
-    legHtml += '<div class="legend-item" style="opacity:.6"><div style="width:16px;height:1px;border-top:2px dashed #aaa;margin-right:6px"></div>전주</div>';
+    legHtml += '<div class="legend-item" style="opacity:.6"><div style="width:16px;height:1px;border-top:2px dashed #aaa;margin-right:6px"></div>동기간</div>';
   }
   document.getElementById('chartLegend').innerHTML = legHtml;
 
@@ -1106,19 +1106,16 @@ function renderChart(cm, ck) {
       svg += '<path d="' + aD + '" fill="' + col + '" opacity="0.08"/>';
     }
 
-    // Line
+    // Line (직선)
     var lD = 'M ' + coords[0][0] + ' ' + coords[0][1];
     for (var i = 1; i < N; i++) {
-      var x0 = coords[i-1][0], y0 = coords[i-1][1];
-      var x1 = coords[i][0],   y1 = coords[i][1];
-      var cpx = (x0 + x1) / 2;
-      lD += ' C ' + cpx + ' ' + y0 + ' ' + cpx + ' ' + y1 + ' ' + x1 + ' ' + y1;
+      lD += ' L ' + coords[i][0] + ' ' + coords[i][1];
     }
     var dashAttr = isPrevSeries ? ' stroke-dasharray="4,3"' : '';
-    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="1"' + dashAttr + ' stroke-linejoin="round" stroke-linecap="round"/>';
+    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="0.5"' + dashAttr + ' stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // Dots (날짜 많으면 점 숨김, 전주는 항상 숨김)
-    var showDots = N <= 31 && !isPrevSeries;
+    // Dots
+    var showDots = N <= 31;
     var mLabel = series[si].meta.label;
     var mType  = series[si].meta.type;
     var mVals  = series[si].values;
