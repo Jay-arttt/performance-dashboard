@@ -679,13 +679,36 @@ var CHART_METRICS = [
 var selectedMetrics = ['cost', 'revenue'];
 var S = {brand: 'all', sub: 'all', ch: ['all']};
 
-var DAYS = ['3/1', '3/5', '3/9', '3/13', '3/17', '3/21', '3/24'];
-var MULTS = {
-  meta:   [1.0, 0.91, 1.08, 1.22, 1.17, 1.27, 1.15],
-  google: [1.0, 1.07, 0.97, 1.14, 1.03, 1.10, 1.07],
-  ngfa:   [1.0, 1.12, 0.94, 1.29, 1.18, 1.09, 1.24],
-  nsa:    [1.0, 1.10, 0.95, 1.24, 1.14, 1.05, 1.19]
-};
+var DAYS = []; // 차트용 날짜 배열 (renderChart에서 동적 생성)
+var MULTS = {}; // 더 이상 사용하지 않음
+
+// 브랜드 × 채널 × 날짜별 1일 데이터 반환
+function getDayData(brKey, chKey, dateStr) {
+  var empty = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+  // 스케쳐스 실제 데이터
+  if (sheetsCache.skechers) {
+    var p = sheetsCache.skechers;
+    var byDate = null;
+    if (brKey === 'skechers_official' && chKey === 'nsa')    byDate = p.nsa;
+    if (brKey === 'skechers_official' && chKey === 'google') byDate = p.googleOfficial;
+    if (brKey === 'skechers_app'      && chKey === 'google') byDate = p.googleApp;
+    if (byDate && byDate[dateStr]) return byDate[dateStr];
+    if (byDate) return empty;
+  }
+  // 마이녹셀 실제 데이터
+  if (sheetsCache.minoxell) {
+    var pm = sheetsCache.minoxell;
+    var byDateM = null;
+    if (brKey === 'minoxell' && chKey === 'nsa')  byDateM = pm.nsa;
+    if (brKey === 'minoxell' && chKey === 'meta') byDateM = pm.meta;
+    if (brKey === 'minoxell' && chKey === 'ngfa') byDateM = pm.ngfa;
+    if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
+    if (byDateM) return empty;
+  }
+  // 샘플 데이터 브랜드: RAW 합산값을 날짜 수로 나눠서 근사
+  if (RAW[brKey] && RAW[brKey][chKey]) return empty; // 샘플은 일별 없음
+  return empty;
+}
 
 function brandKeys() {
   if (S.brand === 'all') return ALL_BRANDS;
@@ -917,25 +940,44 @@ function renderChart(cm, ck) {
   }
   document.getElementById('chartLegend').innerHTML = legHtml;
 
-  // Build daily series per metric
+  // 날짜 범위에서 일별 날짜 배열 생성
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+  var DAYS = [];
+  var d = new Date(dateFrom);
+  var dEnd = new Date(dateTo);
+  while (d <= dEnd) {
+    var mm = d.getMonth() + 1;
+    var dd = d.getDate();
+    DAYS.push(mm + '/' + dd);
+    d.setDate(d.getDate() + 1);
+  }
+
+  // Build daily series per metric (실제 날짜별 raw 데이터에서 합산)
   var series = [];
   for (var mi = 0; mi < activeMets.length; mi++) {
     var metKey = activeMets[mi].key;
     var vals = [];
     for (var di = 0; di < DAYS.length; di++) {
+      var dStr = new Date(dateFrom);
+      dStr.setDate(dStr.getDate() + di);
+      var dKey = dStr.toISOString().slice(0, 10);
+
       var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
       for (var ci = 0; ci < ck.length; ci++) {
-        var ch = ck[ci];
-        var base = cm[ch];
-        var mult = MULTS[ch][di];
-        s.cost        += Math.round(base.cost * mult);
-        s.revenue     += Math.round(base.revenue * mult);
-        s.clicks      += Math.round(base.clicks * mult);
-        s.impressions += Math.round(base.impressions * mult);
-        s.conversions += Math.round(base.conversions * mult);
+        var chKey = ck[ci];
+        var bk2 = brandKeys();
+        for (var bi2 = 0; bi2 < bk2.length; bi2++) {
+          var brKey = bk2[bi2];
+          var dayData = getDayData(brKey, chKey, dKey);
+          s.cost        += dayData.cost;
+          s.revenue     += dayData.revenue;
+          s.clicks      += dayData.clicks;
+          s.impressions += dayData.impressions;
+          s.conversions += dayData.conversions;
+        }
       }
-      var d = calc(s);
-      vals.push(d[metKey]);
+      vals.push(calc(s)[metKey] || 0);
     }
     series.push({meta: activeMets[mi], values: vals});
   }
