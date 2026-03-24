@@ -156,6 +156,28 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 .kpi-card:nth-child(7){animation-delay:.21s} .kpi-card:nth-child(8){animation-delay:.24s}
 .kpi-card:nth-child(9){animation-delay:.27s} .kpi-card:nth-child(10){animation-delay:.30s}
 .kpi-card:nth-child(11){animation-delay:.33s}
+
+/* Budget section */
+.budget-section { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:20px; }
+.budget-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.budget-title { font-size:13px; font-weight:500; color:var(--text); }
+.budget-edit-btn { font-family:'DM Mono',monospace; font-size:11px; padding:5px 12px; border-radius:6px; border:1px solid var(--border2); background:transparent; color:var(--muted); cursor:pointer; transition:all .15s; }
+.budget-edit-btn:hover { color:var(--text); border-color:var(--text); }
+.budget-save-btn { font-family:'DM Mono',monospace; font-size:11px; padding:5px 14px; border-radius:6px; border:none; background:var(--text); color:var(--bg); cursor:pointer; margin-top:10px; }
+.budget-save-btn:hover { opacity:.8; }
+.budget-input-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+.budget-input-item { display:flex; flex-direction:column; gap:4px; }
+.budget-input-label { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.5px; }
+.budget-input-field { font-family:'DM Mono',monospace; font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text); width:140px; outline:none; }
+.budget-input-field:focus { border-color:var(--text); }
+.budget-bars { display:flex; flex-direction:column; gap:10px; }
+.budget-row { display:flex; align-items:center; gap:12px; }
+.budget-row-label { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); width:80px; flex-shrink:0; }
+.budget-bar-wrap { flex:1; height:8px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.budget-bar-fill { height:100%; border-radius:4px; transition:width .6s ease; }
+.budget-bar-fill.over { background:var(--down); }
+.budget-row-nums { font-family:'DM Mono',monospace; font-size:11px; color:var(--text); white-space:nowrap; min-width:200px; text-align:right; }
+.budget-row-pct { font-family:'DM Mono',monospace; font-size:12px; font-weight:500; min-width:48px; text-align:right; }
 </style>
 </head>
 <body>
@@ -168,7 +190,7 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 
 <div class="header">
   <div>
-    <h1>매체 성과 대시보드</h1>
+    <h1>브랜드별 광고 성과 대시보드</h1>
     <p id="rangeLabel">2026.02.22 — 2026.03.24</p>
   </div>
   <div class="date-controls">
@@ -223,6 +245,13 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
     <button class="tab" data-ch="ngfa" onclick="setCh(this)"><span class="dot" style="background:var(--ngfa)"></span>네이버 GFA</button>
     <button class="tab" data-ch="nsa" onclick="setCh(this)"><span class="dot" style="background:var(--nsa)"></span>네이버 SA</button>
   </div>
+</div>
+
+<div class="budget-section" id="budgetSection">
+  <div class="budget-header">
+    <span class="budget-title">예산 현황</span>
+  </div>
+  <div class="budget-bars" id="budgetBars"></div>
 </div>
 
 <div class="kpi-grid" id="kpiGrid"></div>
@@ -372,13 +401,15 @@ function aggregateNSA(rows) {
 // CSV 행 → 날짜별 합산 (구글DA, mode: 'official' | 'app')
 function aggregateGoogleDA(rows, mode) {
   var byDate = {};
-  var COL_DATE = '일자';
-  var COL_TYPE = '캠페인유형';
-  var COL_COST = '총비용(vat-)';
-  var COL_IMPR = '노출수';
+  var COL_DATE  = '일자';
+  var COL_TYPE  = '캠페인유형';
+  var COL_COST  = '총비용(vat-)';
+  var COL_IMPR  = '노출수';
   var COL_CLICK = '클릭수';
-  var COL_CONV = '총 구매수';
-  var COL_REV  = '총 매출액';
+  var COL_CONV  = '총 구매수';
+  var COL_REV   = '총 매출액';
+  var COL_APP_AND = '앱설치(Android)';
+  var COL_APP_IOS = '앱설치(iOS)';
 
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
@@ -391,8 +422,13 @@ function aggregateGoogleDA(rows, mode) {
     byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
     byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
     byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
-    byDate[dateStr].conversions += Number(r[COL_CONV])  || 0;
     byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
+    // 앱 캠페인은 앱설치수, 공식몰은 구매수
+    if (mode === 'app') {
+      byDate[dateStr].conversions += (Number(r[COL_APP_AND]) || 0) + (Number(r[COL_APP_IOS]) || 0);
+    } else {
+      byDate[dateStr].conversions += Number(r[COL_CONV]) || 0;
+    }
   }
   return byDate;
 }
@@ -537,7 +573,7 @@ var CHART_METRICS = [
 ];
 
 var selectedMetrics = ['cost', 'revenue'];
-var S = {brand: 'all', sub: 'all', ch: 'all'};
+var S = {brand: 'all', sub: 'all', ch: ['all']};
 
 var DAYS = ['3/1', '3/5', '3/9', '3/13', '3/17', '3/21', '3/24'];
 var MULTS = {
@@ -555,7 +591,8 @@ function brandKeys() {
 }
 
 function chKeys() {
-  return S.ch === 'all' ? CHS : [S.ch];
+  if (S.ch.indexOf('all') !== -1) return CHS;
+  return S.ch.length > 0 ? S.ch : CHS;
 }
 
 function sumData(bk, ck, dataset) {
@@ -989,11 +1026,15 @@ var BRAND_OVERRIDES = {
     excludeCols: ['revenue', 'roas'],
     labelOverrides: {conversions: '회원가입', cpa: 'CPA', cvr: 'CVR'},
     kpiOrder: ['cost', 'conversions', 'cvr', 'cpa', 'clicks', 'ctr', 'cpc', 'impressions', 'cpm']
+  },
+  skechers_app: {
+    labelOverrides: {conversions: '앱설치수', cpa: 'CPI', cvr: '설치율'}
   }
 };
 
 function getActiveBrand() {
   if (S.brand === 'careerbut') return 'careerbut';
+  if (S.brand === 'skechers' && S.sub === 'skechers_app') return 'skechers_app';
   return null;
 }
 
@@ -1103,6 +1144,7 @@ function render() {
   var ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   var pm = sumData(bk, ck, PREV);
+  renderBudgetSection();
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
@@ -1135,10 +1177,34 @@ function setSub(btn, brand) {
 }
 
 function setCh(btn) {
+  var clicked = btn.getAttribute('data-ch');
+
+  if (clicked === 'all') {
+    // 전체 클릭 → 모두 해제하고 전체만 선택
+    S.ch = ['all'];
+  } else {
+    // 개별 클릭
+    var idx = S.ch.indexOf(clicked);
+    var allIdx = S.ch.indexOf('all');
+
+    if (allIdx !== -1) {
+      // 전체 해제하고 클릭한 것만
+      S.ch = [clicked];
+    } else if (idx !== -1) {
+      // 이미 선택된 거 클릭 → 해제 (최소 1개 유지)
+      if (S.ch.length > 1) S.ch.splice(idx, 1);
+    } else {
+      // 새로 추가
+      S.ch.push(clicked);
+    }
+  }
+
+  // 탭 active 상태 업데이트
   var tabs = document.querySelectorAll('#chTabs .tab');
-  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
-  btn.classList.add('active');
-  S.ch = btn.getAttribute('data-ch');
+  for (var i = 0; i < tabs.length; i++) {
+    var ch = tabs[i].getAttribute('data-ch');
+    tabs[i].classList.toggle('active', S.ch.indexOf(ch) !== -1);
+  }
   renderWithData();
 }
 
@@ -1205,6 +1271,149 @@ function updateLabel() {
   var t = document.getElementById('dateTo').value;
   document.getElementById('rangeLabel').textContent = f.replace(/-/g, '.') + ' — ' + t.replace(/-/g, '.');
 }
+
+// ── 예산 현황 (Google Sheets CSV 연동) ─────────────────────────────────────────
+var BUDGET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjLq8cpPkrwvor2C6zNvTTtExwXISiHYfI9IE6rnlhizKK0nYVj6WV3kCCOZolwmImKtKkFClW073s/pub';
+var BUDGET_GIDS = {
+  '2026-01': '0',
+  '2026-02': '1449092166',
+  '2026-03': '306715474',
+  '2026-04': '1397025198',
+  '2026-05': '843340349',
+  '2026-06': '1382615900'
+};
+
+var BUDGET_CHS = [
+  {key:'meta',   label:'Meta'},
+  {key:'google', label:'Google'},
+  {key:'ngfa',   label:'N.GFA'},
+  {key:'nsa',    label:'N.SA'}
+];
+
+var budgetCache = {}; // 월별 캐시
+
+// 날짜 범위의 일수
+function rangeDays() {
+  var f = new Date(document.getElementById('dateFrom').value);
+  var t = new Date(document.getElementById('dateTo').value);
+  return Math.max(1, Math.round((t - f) / 86400000) + 1);
+}
+// 해당 월의 총 일수
+function monthDays(dateStr) {
+  var d = new Date(dateStr);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+// 날짜에서 YYYY-MM 추출
+function getYearMonth(dateStr) {
+  return dateStr ? dateStr.slice(0, 7) : '';
+}
+
+// CSV에서 예산 데이터 파싱 → { 'brandKey__chKey': 월예산 }
+function parseBudgetCSV(text) {
+  var lines = text.trim().split('\n');
+  if (lines.length < 2) return {};
+  var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+  var iBrand = headers.indexOf('브랜드');
+  var iCh    = headers.indexOf('매체');
+  var iBudget= headers.indexOf('예산');
+  if (iBrand < 0 || iCh < 0 || iBudget < 0) return {};
+  var out = {};
+  for (var i = 1; i < lines.length; i++) {
+    var cols = lines[i].split(',').map(function(c){ return c.trim().replace(/^"|"$/g,''); });
+    if (!cols[iBrand]) continue;
+    var key = cols[iBrand] + '__' + cols[iCh];
+    out[key] = Number(cols[iBudget].replace(/,/g,'')) || 0;
+  }
+  return out;
+}
+
+function loadBudgetForMonth(ym, callback) {
+  if (budgetCache[ym]) { callback(budgetCache[ym]); return; }
+  var gid = BUDGET_GIDS[ym];
+  if (!gid) { callback({}); return; }
+  var url = BUDGET_BASE + '?gid=' + gid + '&single=true&output=csv';
+  fetch(url)
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var parsed = parseBudgetCSV(text);
+      budgetCache[ym] = parsed;
+      callback(parsed);
+    })
+    .catch(function(){ callback({}); });
+}
+
+function renderBudgetSection() {
+  var fromStr = document.getElementById('dateFrom').value;
+  var ym = getYearMonth(fromStr);
+  var barsEl = document.getElementById('budgetBars');
+  barsEl.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">예산 불러오는 중...</div>';
+
+  loadBudgetForMonth(ym, function(budgets) {
+    var bk = brandKeys();
+    var ck = chKeys();
+    var days  = rangeDays();
+    var mDays = monthDays(fromStr);
+
+    var BUDGET_BRANDS_LIST = [
+      {key:'skechers_official', label:'스케쳐스 공식몰'},
+      {key:'skechers_app',      label:'스케쳐스 앱'},
+      {key:'mynoxcel',          label:'마이녹셀'},
+      {key:'careerbut',         label:'커리어벗'},
+      {key:'kitchenaid',        label:'키친에이드'},
+      {key:'ecovacs',           label:'에코백스'},
+      {key:'anova',             label:'아노바'}
+    ];
+
+    var visibleBrands = BUDGET_BRANDS_LIST.filter(function(b){ return bk.indexOf(b.key) !== -1; });
+    var visibleChs    = BUDGET_CHS.filter(function(c){ return ck.indexOf(c.key) !== -1; });
+
+    var rows = [];
+    for (var bi = 0; bi < visibleBrands.length; bi++) {
+      var br = visibleBrands[bi];
+      for (var ci = 0; ci < visibleChs.length; ci++) {
+        var ch = visibleChs[ci];
+        var storageKey   = br.key + '__' + ch.key;
+        var monthBudget  = budgets[storageKey] || 0;
+        if (!monthBudget) continue;
+        var periodBudget = Math.round(monthBudget / mDays * days);
+        var chData = sumData([br.key], [ch.key], RAW);
+        var spent  = aggCalc(chData).cost || 0;
+        rows.push({
+          label: br.label + ' · ' + ch.label,
+          monthBudget: monthBudget,
+          periodBudget: periodBudget,
+          spent: spent
+        });
+      }
+    }
+
+    if (rows.length === 0) {
+      barsEl.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted);padding:4px 0">' + ym + ' 예산 데이터가 없어요</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var pct     = r.periodBudget > 0 ? Math.min(r.spent / r.periodBudget * 100, 100) : 0;
+      var pctReal = r.periodBudget > 0 ? (r.spent / r.periodBudget * 100).toFixed(1) : '0.0';
+      var isOver  = r.spent > r.periodBudget;
+      var color   = isOver ? 'var(--down)' : r.spent / r.periodBudget > 0.8 ? 'var(--google)' : 'var(--up)';
+      html += '<div class="budget-row">';
+      html += '<div class="budget-row-label" style="width:160px">' + r.label + '</div>';
+      html += '<div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+      html += '<div class="budget-row-nums">₩' + Math.round(r.spent).toLocaleString('ko-KR') + ' / ₩' + r.periodBudget.toLocaleString('ko-KR');
+      html += ' <span style="color:var(--muted);font-size:10px">(월 ₩' + r.monthBudget.toLocaleString('ko-KR') + ')</span></div>';
+      html += '<div class="budget-row-pct" style="color:' + color + '">' + pctReal + '%</div>';
+      html += '</div>';
+    }
+    barsEl.innerHTML = html;
+  });
+}
+
+// 예산 입력 버튼 숨기기 (Sheets에서 읽어오므로 불필요)
+function toggleBudgetEdit() {}
+function saveBudget() {}
 
 buildMetricSelector();
 buildColDropdown();
