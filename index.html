@@ -103,7 +103,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 /* SVG line chart */
 .lc-grid line { stroke: rgba(255,255,255,.05); stroke-width: 1; }
-.lc-axis-text { font-family: 'DM Mono', monospace; font-size: 10px; fill: var(--muted); }
+.lc-axis-text { font-family: 'DM Mono', monospace; font-size: 8px; fill: var(--muted); }
 .lc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .lc-dot { stroke-width: 2; cursor: pointer; }
 
@@ -982,42 +982,93 @@ function renderChart(cm, ck) {
     series.push({meta: activeMets[mi], values: vals});
   }
 
-  // Normalize each series to [0,1] for rendering
+  // 지표 타입 분류
+  var PCT_TYPES  = ['pct', 'roas']; // 오른쪽 Y축
+  var leftSeries  = series.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) === -1; });
+  var rightSeries = series.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) !== -1; });
+
+  // Y축 범위 계산
+  function seriesMinMax(arr) {
+    var mn = Infinity, mx = -Infinity;
+    for (var i = 0; i < arr.length; i++) {
+      for (var j = 0; j < arr[i].values.length; j++) {
+        if (arr[i].values[j] < mn) mn = arr[i].values[j];
+        if (arr[i].values[j] > mx) mx = arr[i].values[j];
+      }
+    }
+    return {min: mn === Infinity ? 0 : mn, max: mx === -Infinity ? 1 : mx};
+  }
+  function niceMax(v) {
+    if (v === 0) return 1;
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    return Math.ceil(v / mag) * mag;
+  }
+
+  var lRange = leftSeries.length  ? seriesMinMax(leftSeries)  : null;
+  var rRange = rightSeries.length ? seriesMinMax(rightSeries) : null;
+  var lMax = lRange ? niceMax(lRange.max) : 0;
+  var rMax = rRange ? niceMax(rRange.max) : 0;
+
+  // 각 시리즈 정규화 (각자의 축 기준)
   var normed = [];
   for (var i = 0; i < series.length; i++) {
     var vs = series[i].values;
-    var mn = vs[0], mx = vs[0];
-    for (var j = 1; j < vs.length; j++) {
-      if (vs[j] < mn) mn = vs[j];
-      if (vs[j] > mx) mx = vs[j];
-    }
-    var rng = mx - mn || 1;
+    var isPct = PCT_TYPES.indexOf(series[i].meta.type) !== -1;
+    var axMax = isPct ? rMax : lMax;
     var n = [];
-    for (var j = 0; j < vs.length; j++) n.push((vs[j] - mn) / rng);
+    for (var j = 0; j < vs.length; j++) n.push(axMax > 0 ? vs[j] / axMax : 0);
     normed.push(n);
   }
 
   var N = DAYS.length;
   var W = 620, H = 200;
-  var PL = 16, PR = 16, PT = 14, PB = 28;
+  var PL = lRange ? 64 : 16;
+  var PR = rRange ? 56 : 16;
+  var PT = 14, PB = 28;
   var cW = W - PL - PR;
   var cH = H - PT - PB;
 
-  function xp(i) { return PL + (i / (N - 1)) * cW; }
-  function yp(n) { return PT + (1 - n) * cH; }
+  function xp(i) { return N > 1 ? PL + (i / (N - 1)) * cW : PL + cW / 2; }
+  function yp(n) { return PT + (1 - Math.min(n, 1)) * cH; }
+
+  // Y축 눈금 포맷
+  function fmtAxis(v, type) {
+    if (type === 'pct') return (v * 100).toFixed(1) + '%';
+    if (type === 'roas') return (v * 100).toFixed(0) + '%';
+    if (v >= 1000000) return '₩' + (v/1000000).toFixed(1) + 'M';
+    if (v >= 10000)   return '₩' + Math.round(v/10000) + '만';
+    if (v >= 1000)    return '₩' + (v/1000).toFixed(0) + 'K';
+    return v.toLocaleString('ko-KR');
+  }
 
   var svg = '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible;display:block">';
 
-  // Grid
+  // Grid + Y축 눈금
   svg += '<g>';
-  for (var g = 0; g <= 4; g++) {
-    var gy = PT + (g / 4) * cH;
+  var TICKS = 4;
+  for (var g = 0; g <= TICKS; g++) {
+    var gy = PT + (g / TICKS) * cH;
     svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+    var ratio = 1 - g / TICKS;
+    // 왼쪽 Y축
+    if (lRange) {
+      var lVal = ratio * lMax;
+      var lType = leftSeries.length ? leftSeries[0].meta.type : 'num';
+      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(255,255,255,0.35)">' + fmtAxis(lVal, lType) + '</text>';
+    }
+    // 오른쪽 Y축
+    if (rRange) {
+      var rVal = ratio * rMax;
+      var rType = rightSeries.length ? rightSeries[0].meta.type : 'pct';
+      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(255,255,255,0.35)">' + fmtAxis(rVal, rType) + '</text>';
+    }
   }
   svg += '</g>';
 
-  // X labels
+  // X 날짜 레이블 (날짜 수에 따라 간격 조정)
+  var step = N <= 14 ? 1 : N <= 31 ? Math.ceil(N / 8) : Math.ceil(N / 10);
   for (var i = 0; i < DAYS.length; i++) {
+    if (i % step !== 0 && i !== DAYS.length - 1) continue;
     svg += '<text x="' + xp(i) + '" y="' + (H - 4) + '" text-anchor="middle" class="lc-axis-text">' + DAYS[i] + '</text>';
   }
 
@@ -1044,13 +1095,18 @@ function renderChart(cm, ck) {
     }
     svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // Dots
+    // Dots (날짜 많으면 점 숨김)
+    var showDots = N <= 31;
     var mLabel = series[si].meta.label;
     var mType  = series[si].meta.type;
     var mVals  = series[si].values;
     for (var i = 0; i < N; i++) {
       var tipTxt = mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')';
-      svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3.5" fill="' + col + '" stroke="#16181c" stroke-width="2" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+      if (showDots) {
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3.5" fill="' + col + '" stroke="#16181c" stroke-width="2" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+      } else {
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="5" fill="transparent" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+      }
     }
   }
 
