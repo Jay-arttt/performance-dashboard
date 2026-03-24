@@ -159,7 +159,9 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 
 /* Budget section */
 .budget-section { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:20px; }
-.budget-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.budget-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+.budget-period-selector { display:flex; align-items:center; gap:6px; }
+.budget-select { font-family:'DM Mono',monospace; font-size:11px; padding:5px 10px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text); cursor:pointer; outline:none; }
 .budget-title { font-size:13px; font-weight:500; color:var(--text); }
 .budget-edit-btn { font-family:'DM Mono',monospace; font-size:11px; padding:5px 12px; border-radius:6px; border:1px solid var(--border2); background:transparent; color:var(--muted); cursor:pointer; transition:all .15s; }
 .budget-edit-btn:hover { color:var(--text); border-color:var(--text); }
@@ -257,6 +259,10 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 <div class="budget-section" id="budgetSection">
   <div class="budget-header">
     <span class="budget-title">예산 현황</span>
+    <div class="budget-period-selector">
+      <select class="budget-select" id="budgetYearSelect" onchange="setBudgetYear(this.value)"></select>
+      <select class="budget-select" id="budgetMonthSelect" onchange="setBudgetMonth(this.value)"></select>
+    </div>
   </div>
   <div class="budget-bars" id="budgetBars"></div>
 </div>
@@ -1304,7 +1310,48 @@ var BUDGET_CHS = [
   {key:'nsa',    label:'N.SA'}
 ];
 
-var budgetCache = {}; // 월별 캐시
+var budgetCache = {};
+
+// 예산 기간 상태 (독립적으로 관리)
+var budgetPeriod = {year: '2026', month: '03'};
+
+function buildBudgetPeriodSelector() {
+  var years = [], monthsByYear = {};
+  Object.keys(BUDGET_GIDS).sort().forEach(function(ym) {
+    var y = ym.slice(0,4), m = ym.slice(5,7);
+    if (years.indexOf(y) === -1) years.push(y);
+    if (!monthsByYear[y]) monthsByYear[y] = [];
+    monthsByYear[y].push(m);
+  });
+
+  // 연도 드롭박스
+  var yearSel = document.getElementById('budgetYearSelect');
+  yearSel.innerHTML = years.map(function(y) {
+    return '<option value="' + y + '"' + (y===budgetPeriod.year?' selected':'') + '>' + y + '년</option>';
+  }).join('');
+
+  // 월 드롭박스 (선택된 연도 기준)
+  var monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var months = monthsByYear[budgetPeriod.year] || [];
+  var monthSel = document.getElementById('budgetMonthSelect');
+  monthSel.innerHTML = months.map(function(m) {
+    return '<option value="' + m + '"' + (m===budgetPeriod.month?' selected':'') + '>' + monthNames[parseInt(m,10)-1] + '</option>';
+  }).join('');
+}
+
+function setBudgetYear(y) {
+  budgetPeriod.year = y;
+  // 해당 연도 첫 번째 월로 자동 선택
+  var found = Object.keys(BUDGET_GIDS).filter(function(ym){ return ym.slice(0,4)===y; }).sort();
+  if (found.length) budgetPeriod.month = found[0].slice(5,7);
+  buildBudgetPeriodSelector();
+  renderBudgetSection();
+}
+
+function setBudgetMonth(m) {
+  budgetPeriod.month = m;
+  renderBudgetSection();
+}
 
 // 날짜 범위의 일수
 function rangeDays() {
@@ -1447,16 +1494,15 @@ function loadBudgetForMonth(ym, callback) {
 }
 
 function renderBudgetSection() {
-  var fromStr = document.getElementById('dateFrom').value;
-  var ym = getYearMonth(fromStr);
+  var ym = budgetPeriod.year + '-' + budgetPeriod.month;
   var barsEl = document.getElementById('budgetBars');
   barsEl.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">예산 불러오는 중...</div>';
 
   loadBudgetForMonth(ym, function(budgets) {
     var bk = brandKeys();
     var ck = chKeys();
-    var days  = rangeDays();
-    var mDays = monthDays(fromStr);
+    // 예산은 월 전체 기준 (일할 계산 없이 월 예산 그대로 표시)
+    var mDays = monthDays(ym + '-01');
 
     var BUDGET_BRANDS_LIST = [
       {key:'skechers_official', label:'스케쳐스 공식몰'},
@@ -1477,16 +1523,14 @@ function renderBudgetSection() {
       var br = visibleBrands[bi];
       for (var ci = 0; ci < visibleChs.length; ci++) {
         var ch = visibleChs[ci];
-        var storageKey   = br.key + '__' + ch.key;
-        var monthBudget  = budgets[storageKey] || 0;
+        var storageKey  = br.key + '__' + ch.key;
+        var monthBudget = budgets[storageKey] || 0;
         if (!monthBudget) continue;
-        var periodBudget = Math.round(monthBudget / mDays * days);
         var chData = sumData([br.key], [ch.key], RAW);
         var spent  = aggCalc(chData).cost || 0;
         rows.push({
           label: br.label + ' · ' + ch.label,
           monthBudget: monthBudget,
-          periodBudget: periodBudget,
           spent: spent
         });
       }
@@ -1500,15 +1544,14 @@ function renderBudgetSection() {
     var html = '';
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      var pct     = r.periodBudget > 0 ? Math.min(r.spent / r.periodBudget * 100, 100) : 0;
-      var pctReal = r.periodBudget > 0 ? (r.spent / r.periodBudget * 100).toFixed(1) : '0.0';
-      var isOver  = r.spent > r.periodBudget;
-      var color   = isOver ? 'var(--down)' : r.spent / r.periodBudget > 0.8 ? 'var(--google)' : 'var(--up)';
+      var pct     = r.monthBudget > 0 ? Math.min(r.spent / r.monthBudget * 100, 100) : 0;
+      var pctReal = r.monthBudget > 0 ? (r.spent / r.monthBudget * 100).toFixed(1) : '0.0';
+      var isOver  = r.spent > r.monthBudget;
+      var color   = isOver ? 'var(--down)' : r.spent / r.monthBudget > 0.8 ? 'var(--google)' : 'var(--up)';
       html += '<div class="budget-row">';
       html += '<div class="budget-row-label" style="width:160px">' + r.label + '</div>';
       html += '<div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
-      html += '<div class="budget-row-nums">₩' + Math.round(r.spent).toLocaleString('ko-KR') + ' / ₩' + r.periodBudget.toLocaleString('ko-KR');
-      html += ' <span style="color:var(--muted);font-size:10px">(월 ₩' + r.monthBudget.toLocaleString('ko-KR') + ')</span></div>';
+      html += '<div class="budget-row-nums">₩' + Math.round(r.spent).toLocaleString('ko-KR') + ' / ₩' + r.monthBudget.toLocaleString('ko-KR') + '</div>';
       html += '<div class="budget-row-pct" style="color:' + color + '">' + pctReal + '%</div>';
       html += '</div>';
     }
@@ -1522,6 +1565,7 @@ function saveBudget() {}
 
 buildMetricSelector();
 buildColDropdown();
+buildBudgetPeriodSelector();
 renderWithData();
 </script>
 </body>
