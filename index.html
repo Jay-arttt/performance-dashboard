@@ -321,53 +321,16 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 
 </div><!-- /page-wrap -->
 <script>
+var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
 var RAW = {
-  skechers_official: {
-    meta:   {cost:1100000, revenue:4510000,  clicks:8800,  impressions:295000,  conversions:264},
-    google: {cost:700000,  revenue:2450000,  clicks:5000,  impressions:196000,  conversions:150},
-    ngfa:   {cost:440000,  revenue:1628000,  clicks:3800,  impressions:208000,  conversions:114},
-    nsa:    {cost:540000,  revenue:2430000,  clicks:6000,  impressions:129000,  conversions:180}
-  },
-  skechers_app: {
-    meta:   {cost:720000,  revenue:2770000,  clicks:5400,  impressions:185000,  conversions:162},
-    google: {cost:450000,  revenue:1575000,  clicks:3100,  impressions:124000,  conversions:93},
-    ngfa:   {cost:280000,  revenue:1036000,  clicks:2400,  impressions:132000,  conversions:72},
-    nsa:    {cost:340000,  revenue:1530000,  clicks:3800,  impressions:81000,   conversions:114}
-  },
-  minoxell:   {
-    meta:   {cost:980000,  revenue:3920000,  clicks:7800,  impressions:260000,  conversions:234},
-    google: {cost:720000,  revenue:2376000,  clicks:4800,  impressions:192000,  conversions:144},
-    ngfa:   {cost:480000,  revenue:1680000,  clicks:4000,  impressions:220000,  conversions:120},
-    nsa:    {cost:560000,  revenue:2520000,  clicks:6200,  impressions:134000,  conversions:186}
-  },
-  oliveyoung: {
-    meta:   {cost:1370000, revenue:5480000,  clicks:9200,  impressions:310000,  conversions:276},
-    ngfa:   {cost:130000,  revenue:520000,   clicks:2100,  impressions:180000,  conversions:63}
-  },
-  careerbud:  {
-    meta:   {cost:760000,  revenue:3040000,  clicks:6100,  impressions:200000,  conversions:183},
-    google: {cost:580000,  revenue:1914000,  clicks:3900,  impressions:155000,  conversions:117},
-    ngfa:   {cost:340000,  revenue:1190000,  clicks:2800,  impressions:160000,  conversions:84},
-    nsa:    {cost:420000,  revenue:1890000,  clicks:4600,  impressions:100000,  conversions:138}
-  },
-  kitchenaid: {
-    meta:   {cost:420000,  revenue:1680000,  clicks:3360,  impressions:109000,  conversions:101},
-    google: {cost:280000,  revenue:924000,   clicks:1870,  impressions:74000,   conversions:56},
-    ngfa:   {cost:160000,  revenue:560000,   clicks:1300,  impressions:75000,   conversions:39},
-    nsa:    {cost:200000,  revenue:900000,   clicks:2200,  impressions:47000,   conversions:66}
-  },
-  ecovacs:    {
-    meta:   {cost:480000,  revenue:1920000,  clicks:3840,  impressions:124000,  conversions:115},
-    google: {cost:310000,  revenue:1023000,  clicks:2070,  impressions:82000,   conversions:62},
-    ngfa:   {cost:180000,  revenue:630000,   clicks:1500,  impressions:84000,   conversions:45},
-    nsa:    {cost:230000,  revenue:1035000,  clicks:2580,  impressions:54000,   conversions:77}
-  },
-  anova:      {
-    meta:   {cost:360000,  revenue:1440000,  clicks:2880,  impressions:94000,   conversions:86},
-    google: {cost:230000,  revenue:759000,   clicks:1560,  impressions:62000,   conversions:47},
-    ngfa:   {cost:140000,  revenue:490000,   clicks:1200,  impressions:64000,   conversions:36},
-    nsa:    {cost:170000,  revenue:765000,   clicks:1900,  impressions:41000,   conversions:57}
-  }
+  skechers_official: {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  skechers_app:      {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  minoxell:          {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  oliveyoung:        {meta:EMPTY, ngfa:EMPTY},
+  careerbud:         {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  kitchenaid:        {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  ecovacs:           {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
+  anova:             {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY}
 };
 
 // ── Google Sheets CSV 연동 ────────────────────────────────────────────────────
