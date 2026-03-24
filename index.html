@@ -521,6 +521,26 @@ function aggregateGeneric(rows) {
   return byDate;
 }
 
+// GFA 전용: 일자 컬럼이 중복이고 날짜 형식이 2026.01.01. 형태
+function aggregateGFA(rows) {
+  var byDate = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    // '일별' 컬럼 사용 (GFA 시트 날짜 컬럼명)
+    var rawDate = r['일별'] || '';
+    // 2026.01.01. → 2026-01-01
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    byDate[dateStr].cost        += Number(r['총비용(vat-)'])       || 0;
+    byDate[dateStr].impressions += Number(r['노출수'])              || 0;
+    byDate[dateStr].clicks      += Number(r['클릭수'])              || 0;
+    byDate[dateStr].conversions += Number(r['구매완료 전환수'])      || 0;
+    byDate[dateStr].revenue     += Number(r['구매완료 매출액'])      || 0;
+  }
+  return byDate;
+}
+
 function loadMinoxell(callback) {
   if (sheetsCache.minoxell) { callback(sheetsCache.minoxell); return; }
   showLoading(true);
@@ -534,7 +554,7 @@ function loadMinoxell(callback) {
     var parsed = {
       nsa:  aggregateGeneric(parseCSV(results[0])),
       meta: aggregateGeneric(parseCSV(results[1])),
-      ngfa: aggregateGeneric(parseCSV(results[2]))
+      ngfa: aggregateGFA(parseCSV(results[2]))
     };
     sheetsCache.minoxell = parsed;
     showLoading(false);
