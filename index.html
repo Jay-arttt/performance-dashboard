@@ -259,14 +259,17 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 </div>
 
 <div class="budget-section" id="budgetSection">
-  <div class="budget-header">
-    <span class="budget-title">예산 현황</span>
-    <div class="budget-period-selector">
+  <div class="budget-header" onclick="toggleBudgetSection()" style="cursor:pointer">
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg id="budgetArrow" width="14" height="14" viewBox="0 0 14 14" fill="none" style="transition:transform .2s;transform:rotate(-90deg)"><path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="budget-title">예산 소진 현황</span>
+    </div>
+    <div class="budget-period-selector" onclick="event.stopPropagation()">
       <select class="budget-select" id="budgetYearSelect" onchange="setBudgetYear(this.value)"></select>
       <select class="budget-select" id="budgetMonthSelect" onchange="setBudgetMonth(this.value)"></select>
     </div>
   </div>
-  <div class="budget-bars" id="budgetBars"></div>
+  <div class="budget-bars" id="budgetBars" style="display:none"></div>
 </div>
 
 <div class="kpi-grid" id="kpiGrid"></div>
@@ -1472,15 +1475,15 @@ var BUDGET_MAP = [
   {sheetBrand:'하이퍼_아노바',     sheetCh:'GFA_애드',          brand:'anova',             ch:'ngfa'},
   {sheetBrand:'커리어벗',          sheetCh:'구글',              brand:'careerbud',         ch:'google'},
   {sheetBrand:'커리어벗',          sheetCh:'메타',              brand:'careerbud',         ch:'meta'},
-  {sheetBrand:'현대약품',          sheetCh:'네이버 SA',         brand:'minoxell',          ch:'nsa'},
-  {sheetBrand:'현대약품',          sheetCh:'네이버 GFA',        brand:'minoxell',          ch:'ngfa'},
-  {sheetBrand:'현대약품',          sheetCh:'메타',              brand:'minoxell',          ch:'meta'},
-  {sheetBrand:'현대약품',          sheetCh:'올리브영 메타',      brand:'oliveyoung',        ch:'meta'},
-  {sheetBrand:'현대약품',          sheetCh:'올리브영 GFA (트래픽)', brand:'oliveyoung',     ch:'ngfa'}
+  {sheetBrand:'마이녹셀',          sheetCh:'네이버 SA',         brand:'minoxell',          ch:'nsa'},
+  {sheetBrand:'마이녹셀',          sheetCh:'네이버 GFA',        brand:'minoxell',          ch:'ngfa'},
+  {sheetBrand:'마이녹셀',          sheetCh:'메타',              brand:'minoxell',          ch:'meta'},
+  {sheetBrand:'마이녹셀',          sheetCh:'올리브영 메타',      brand:'oliveyoung',        ch:'meta'},
+  {sheetBrand:'마이녹셀',          sheetCh:'올리브영 GFA (트래픽)', brand:'oliveyoung',     ch:'ngfa'}
 ];
 
 // 유효한 브랜드명 목록 (소계/기타 행 걸러내기 위해)
-var VALID_SHEET_BRANDS = ['스케쳐스','하이퍼_키친에이드','하이퍼_에코백스','하이퍼_아노바','커리어벗','현대약품','올리브영'];
+var VALID_SHEET_BRANDS = ['스케쳐스','하이퍼_키친에이드','하이퍼_에코백스','하이퍼_아노바','커리어벗','마이녹셀','올리브영'];
 
 // CSV에서 예산 데이터 파싱 → { 'brandKey__chKey': 월예산 }
 function parseBudgetCSV(text) {
@@ -1557,6 +1560,7 @@ function loadBudgetForMonth(ym, callback) {
 }
 
 function renderBudgetSection() {
+  if (!budgetSectionOpen) return; // 닫혀있으면 스킵
   var ym = budgetPeriod.year + '-' + budgetPeriod.month;
   var barsEl = document.getElementById('budgetBars');
   barsEl.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">예산 불러오는 중...</div>';
@@ -1666,6 +1670,17 @@ function _renderBudgetBars(ym, budgets) {
       html += '</div>';
     }
     barsEl.innerHTML = html;
+}
+
+// 예산 소진 현황 토글
+var budgetSectionOpen = false;
+function toggleBudgetSection() {
+  budgetSectionOpen = !budgetSectionOpen;
+  var bars   = document.getElementById('budgetBars');
+  var arrow  = document.getElementById('budgetArrow');
+  bars.style.display = budgetSectionOpen ? 'flex' : 'none';
+  arrow.style.transform = budgetSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+  if (budgetSectionOpen) renderBudgetSection();
 }
 
 // 예산 입력 버튼 숨기기 (Sheets에서 읽어오므로 불필요)
