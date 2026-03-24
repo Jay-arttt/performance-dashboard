@@ -108,7 +108,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .lc-dot { stroke-width: 2; cursor: pointer; }
 
 /* Tooltip */
-.tip { position: absolute; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 11px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); pointer-events: none; opacity: 0; transition: opacity .12s; white-space: nowrap; z-index: 20; }
+.tip { position: fixed; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 11px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); pointer-events: none; opacity: 0; transition: opacity .12s; white-space: nowrap; z-index: 9999; }
 
 /* ROAS section */
 .roas-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
@@ -281,7 +281,10 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 <div class="chart-section">
   <div class="chart-header">
     <span class="chart-title">일별 추이</span>
-    <div class="chart-legend" id="chartLegend"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button id="prevWeekBtn" class="date-btn" onclick="togglePrevWeek()" style="font-size:11px;padding:4px 12px;border-radius:6px">전주 비교</button>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
   </div>
   <div class="metric-selector" id="metricSelector"></div>
   <p class="metric-hint" id="metricHint"></p>
@@ -642,6 +645,20 @@ var CHART_METRICS = [
 ];
 
 var selectedMetrics = ['cost', 'revenue'];
+var prevWeekMode = false;
+
+function togglePrevWeek() {
+  prevWeekMode = !prevWeekMode;
+  var btn = document.getElementById('prevWeekBtn');
+  if (btn) {
+    btn.style.background    = prevWeekMode ? 'var(--text)' : 'transparent';
+    btn.style.color         = prevWeekMode ? 'var(--bg)'   : 'var(--muted)';
+    btn.style.borderColor   = prevWeekMode ? 'var(--text)' : 'var(--border2)';
+  }
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderChart(cm, ck);
+}
 var S = {brand: 'all', sub: 'all', ch: ['all']};
 
 var DAYS = []; // 차트용 날짜 배열 (renderChart에서 동적 생성)
@@ -903,6 +920,9 @@ function renderChart(cm, ck) {
   for (var i = 0; i < activeMets.length; i++) {
     legHtml += '<div class="legend-item"><div class="legend-dot" style="background:' + activeMets[i].color + '"></div>' + activeMets[i].label + '</div>';
   }
+  if (prevWeekMode) {
+    legHtml += '<div class="legend-item" style="opacity:.6"><div style="width:16px;height:1px;border-top:2px dashed #aaa;margin-right:6px"></div>전주</div>';
+  }
   document.getElementById('chartLegend').innerHTML = legHtml;
 
   // 날짜 범위에서 일별 날짜 배열 생성
@@ -944,13 +964,49 @@ function renderChart(cm, ck) {
       }
       vals.push(calc(s)[metKey] || 0);
     }
-    series.push({meta: activeMets[mi], values: vals});
+    series.push({meta: activeMets[mi], values: vals, isPrev: false});
   }
 
-  // 지표 타입 분류
-  var PCT_TYPES  = ['pct', 'roas']; // 오른쪽 Y축
-  var leftSeries  = series.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) === -1; });
-  var rightSeries = series.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) !== -1; });
+  // 전주 비교 시리즈 추가
+  if (prevWeekMode) {
+    var prevDays = [];
+    for (var di = 0; di < DAYS.length; di++) {
+      var pd = new Date(dateFrom);
+      pd.setDate(pd.getDate() + di - 7);
+      prevDays.push(pd.toISOString().slice(0, 10));
+    }
+    for (var mi = 0; mi < activeMets.length; mi++) {
+      var metKey2 = activeMets[mi].key;
+      var pvals = [];
+      for (var di = 0; di < prevDays.length; di++) {
+        var ps = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+        for (var ci = 0; ci < ck.length; ci++) {
+          var chKey2 = ck[ci];
+          var bk3 = brandKeys();
+          for (var bi3 = 0; bi3 < bk3.length; bi3++) {
+            var dayData2 = getDayData(bk3[bi3], chKey2, prevDays[di]);
+            ps.cost        += dayData2.cost;
+            ps.revenue     += dayData2.revenue;
+            ps.clicks      += dayData2.clicks;
+            ps.impressions += dayData2.impressions;
+            ps.conversions += dayData2.conversions;
+          }
+        }
+        pvals.push(calc(ps)[metKey2] || 0);
+      }
+      series.push({
+        meta: {key: activeMets[mi].key, label: '전주 ' + activeMets[mi].label, type: activeMets[mi].type, color: 'rgba(160,160,160,0.7)'},
+        values: pvals,
+        isPrev: true
+      });
+    }
+  }
+
+  // 지표 타입 분류 (전주 제외하고 현재 데이터만 Y축 기준)
+  var PCT_TYPES  = ['pct', 'roas'];
+  var curSeries   = series.filter(function(s){ return !s.isPrev; });
+  var leftSeries  = curSeries.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) === -1; });
+  var rightSeries = curSeries.filter(function(s){ return PCT_TYPES.indexOf(s.meta.type) !== -1; });
 
   // Y축 범위 계산
   function seriesMinMax(arr) {
@@ -1040,14 +1096,17 @@ function renderChart(cm, ck) {
     var pts = normed[si];
     var coords = [];
     for (var i = 0; i < N; i++) coords.push([xp(i), yp(pts[i])]);
+    var isPrevSeries = series[si].isPrev;
 
-    // Area
-    var aD = 'M ' + coords[0][0] + ' ' + yp(0);
-    for (var i = 0; i < N; i++) aD += ' L ' + coords[i][0] + ' ' + coords[i][1];
-    aD += ' L ' + coords[N-1][0] + ' ' + yp(0) + ' Z';
-    svg += '<path d="' + aD + '" fill="' + col + '" opacity="0.08"/>';
+    // Area (전주는 없음)
+    if (!isPrevSeries) {
+      var aD = 'M ' + coords[0][0] + ' ' + yp(0);
+      for (var i = 0; i < N; i++) aD += ' L ' + coords[i][0] + ' ' + coords[i][1];
+      aD += ' L ' + coords[N-1][0] + ' ' + yp(0) + ' Z';
+      svg += '<path d="' + aD + '" fill="' + col + '" opacity="0.08"/>';
+    }
 
-    // Line (smooth bezier)
+    // Line
     var lD = 'M ' + coords[0][0] + ' ' + coords[0][1];
     for (var i = 1; i < N; i++) {
       var x0 = coords[i-1][0], y0 = coords[i-1][1];
@@ -1055,19 +1114,20 @@ function renderChart(cm, ck) {
       var cpx = (x0 + x1) / 2;
       lD += ' C ' + cpx + ' ' + y0 + ' ' + cpx + ' ' + y1 + ' ' + x1 + ' ' + y1;
     }
-    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>';
+    var dashAttr = isPrevSeries ? ' stroke-dasharray="4,3"' : '';
+    svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="1"' + dashAttr + ' stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // Dots (날짜 많으면 점 숨김)
-    var showDots = N <= 31;
+    // Dots (날짜 많으면 점 숨김, 전주는 항상 숨김)
+    var showDots = N <= 31 && !isPrevSeries;
     var mLabel = series[si].meta.label;
     var mType  = series[si].meta.type;
     var mVals  = series[si].values;
     for (var i = 0; i < N; i++) {
-      var tipTxt = mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')';
+      var tipTxt = (mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')').replace(/'/g, '&#39;');
       if (showDots) {
-        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3.5" fill="' + col + '" stroke="#16181c" stroke-width="2" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3" fill="' + col + '" stroke="#16181c" stroke-width="1.5" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
       } else {
-        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="5" fill="transparent" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="6" fill="transparent" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
       }
     }
   }
@@ -1080,9 +1140,12 @@ function showTip(e, text) {
   var tip = document.getElementById('tip');
   tip.textContent = text;
   tip.style.opacity = '1';
-  var rect = document.querySelector('.chart-section').getBoundingClientRect();
-  tip.style.left = (e.clientX - rect.left + 12) + 'px';
-  tip.style.top  = (e.clientY - rect.top  - 10) + 'px';
+  var x = e.clientX + 14;
+  var y = e.clientY - 32;
+  // 화면 오른쪽 벗어나면 왼쪽으로
+  if (x + 200 > window.innerWidth) x = e.clientX - 14 - tip.offsetWidth;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
 }
 function hideTip() {
   document.getElementById('tip').style.opacity = '0';
