@@ -1522,6 +1522,11 @@ function renderBudgetSection() {
     var visibleChs    = BUDGET_CHS.filter(function(c){ return ck.indexOf(c.key) !== -1; });
 
     var rows = [];
+    // 예산 달의 1일~말일
+    var mDays2 = monthDays(ym + '-01');
+    var budgetDateFrom = ym + '-01';
+    var budgetDateTo   = ym + '-' + (mDays2 < 10 ? '0' + mDays2 : '' + mDays2);
+
     for (var bi = 0; bi < visibleBrands.length; bi++) {
       var br = visibleBrands[bi];
       for (var ci = 0; ci < visibleChs.length; ci++) {
@@ -1529,8 +1534,21 @@ function renderBudgetSection() {
         var storageKey  = br.key + '__' + ch.key;
         var monthBudget = budgets[storageKey] || 0;
         if (!monthBudget) continue;
-        var chData = sumData([br.key], [ch.key], RAW);
-        var spent  = aggCalc(chData).cost || 0;
+
+        // 소진액: 예산 달 전체 기간 기준으로 계산
+        var spent = 0;
+        if (sheetsCache.skechers && (br.key === 'skechers_official' || br.key === 'skechers_app')) {
+          // 실제 시트 데이터에서 해당 월 범위로 합산
+          var parsed = sheetsCache.skechers;
+          var byDateMap = ch.key === 'nsa'    ? parsed.nsa :
+                          br.key === 'skechers_app' ? parsed.googleApp : parsed.googleOfficial;
+          spent = sumByDateRange(byDateMap || {}, budgetDateFrom, budgetDateTo).cost || 0;
+        } else {
+          // 샘플 데이터 브랜드는 RAW 그대로
+          var chData = sumData([br.key], [ch.key], RAW);
+          spent = aggCalc(chData).cost || 0;
+        }
+
         rows.push({
           label: br.label + ' · ' + ch.label,
           monthBudget: monthBudget,
