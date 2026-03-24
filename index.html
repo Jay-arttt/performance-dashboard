@@ -1466,21 +1466,17 @@ function parseBudgetCSV(text) {
     var budget     = parseBudgetNum(cols[iBudget] || '');
     if (!budget || !sheetBrand || !sheetCh) continue;
 
-    // 매핑 테이블에 없는 매체명이면 메모 행으로 간주하고 스킵
-    var validCh = false;
+    // 브랜드+매체 조합이 매핑 테이블에 있는 경우에만 처리
+    var matched = false;
     for (var m = 0; m < BUDGET_MAP.length; m++) {
-      if (BUDGET_MAP[m].sheetCh === sheetCh) { validCh = true; break; }
-    }
-    if (!validCh) continue;
-
-    for (var m = 0; m < BUDGET_MAP.length; m++) {
-      var rule = BUDGET_MAP[m];
-      if (rule.sheetBrand === sheetBrand && rule.sheetCh === sheetCh) {
-        var key = rule.brand + '__' + rule.ch;
+      if (BUDGET_MAP[m].sheetBrand === sheetBrand && BUDGET_MAP[m].sheetCh === sheetCh) {
+        var key = BUDGET_MAP[m].brand + '__' + BUDGET_MAP[m].ch;
         out[key] = (out[key] || 0) + budget;
+        matched = true;
         break;
       }
     }
+    // matched 여부와 무관하게 다음 행으로
   }
   return out;
 }
