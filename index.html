@@ -522,23 +522,28 @@ function aggregateGeneric(rows) {
 }
 
 // GFA 전용: 일자 컬럼이 중복이고 날짜 형식이 2026.01.01. 형태
+// 광고그룹명에 '올리브영' 포함 시 oliveyoung으로 분리
 function aggregateGFA(rows) {
-  var byDate = {};
+  var minoxell = {};
+  var oliveyoung = {};
+
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    // '일별' 컬럼 사용 (GFA 시트 날짜 컬럼명)
     var rawDate = r['일별'] || '';
-    // 2026.01.01. → 2026-01-01
     var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
     if (!dateStr || dateStr.length < 10) continue;
-    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-    byDate[dateStr].cost        += Number(r['총비용(vat-)'])       || 0;
-    byDate[dateStr].impressions += Number(r['노출수'])              || 0;
-    byDate[dateStr].clicks      += Number(r['클릭수'])              || 0;
-    byDate[dateStr].conversions += Number(r['구매완료 전환수'])      || 0;
-    byDate[dateStr].revenue     += Number(r['구매완료 매출액'])      || 0;
+
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+
+    if (!target[dateStr]) target[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    target[dateStr].cost        += Number(r['총비용(vat-)'])      || 0;
+    target[dateStr].impressions += Number(r['노출수'])             || 0;
+    target[dateStr].clicks      += Number(r['클릭수'])             || 0;
+    target[dateStr].conversions += Number(r['구매완료 전환수'])     || 0;
+    target[dateStr].revenue     += Number(r['구매완료 매출액'])     || 0;
   }
-  return byDate;
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
 function loadMinoxell(callback) {
@@ -551,10 +556,12 @@ function loadMinoxell(callback) {
     fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
+    var gfaResult = aggregateGFA(parseCSV(results[2]));
     var parsed = {
-      nsa:  aggregateGeneric(parseCSV(results[0])),
-      meta: aggregateGeneric(parseCSV(results[1])),
-      ngfa: aggregateGFA(parseCSV(results[2]))
+      nsa:           aggregateGeneric(parseCSV(results[0])),
+      meta:          aggregateGeneric(parseCSV(results[1])),
+      ngfa:          gfaResult.minoxell,
+      oliveyoung_ngfa: gfaResult.oliveyoung
     };
     sheetsCache.minoxell = parsed;
     showLoading(false);
@@ -582,11 +589,19 @@ function renderWithData() {
         nsa:    sumByDateRange(apiData.nsa,   dateFrom, dateTo),
         ngfa:   sumByDateRange(apiData.ngfa,  dateFrom, dateTo)
       };
+      RAW.oliveyoung = {
+        meta:   RAW.oliveyoung ? RAW.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+        ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
+      };
       var prevRange = getPrevRange(dateFrom, dateTo);
       PREV.minoxell = {
         meta:   sumByDateRange(apiData.meta,  prevRange.from, prevRange.to),
         nsa:    sumByDateRange(apiData.nsa,   prevRange.from, prevRange.to),
         ngfa:   sumByDateRange(apiData.ngfa,  prevRange.from, prevRange.to)
+      };
+      PREV.oliveyoung = {
+        meta:   PREV.oliveyoung ? PREV.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+        ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to)
       };
     }
   }
@@ -704,6 +719,8 @@ function getDayData(brKey, chKey, dateStr) {
     if (brKey === 'minoxell' && chKey === 'nsa')  byDateM = pm.nsa;
     if (brKey === 'minoxell' && chKey === 'meta') byDateM = pm.meta;
     if (brKey === 'minoxell' && chKey === 'ngfa') byDateM = pm.ngfa;
+    // 올리브영 ngfa는 GFA 시트에서 분리된 데이터 사용
+    if (brKey === 'oliveyoung' && chKey === 'ngfa') byDateM = pm.oliveyoung_ngfa;
     if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
     if (byDateM) return empty;
   }
