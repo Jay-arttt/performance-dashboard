@@ -1542,6 +1542,15 @@ function _renderBudgetBars(ym, budgets) {
     var budgetDateFrom = ym + '-01';
     var budgetDateTo   = ym + '-' + (mDays2 < 10 ? '0' + mDays2 : '' + mDays2);
 
+    // 브랜드 × 매체별 수수료율 (예산 현황 전용)
+    var FEE_RATES = {
+      'skechers_official__google': 0.15,
+      'skechers_app__google':      0.15,
+      'minoxell__meta':            0.183,
+      'careerbud__google':         0.183,
+      'careerbud__meta':           0.183
+    };
+
     for (var bi = 0; bi < visibleBrands.length; bi++) {
       var br = visibleBrands[bi];
       for (var ci = 0; ci < visibleChs.length; ci++) {
@@ -1564,6 +1573,10 @@ function _renderBudgetBars(ym, budgets) {
           var chData = sumData([br.key], [ch.key], RAW);
           spent = aggCalc(chData).cost || 0;
         }
+
+        // 수수료 적용 (예산 현황 전용)
+        var feeRate = FEE_RATES[storageKey] || 0;
+        if (feeRate > 0) spent = Math.round(spent * (1 + feeRate));
 
         rows.push({
           label: br.label + ' · ' + ch.label,
