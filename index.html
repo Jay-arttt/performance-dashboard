@@ -201,9 +201,11 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
     <div class="preset-group">
       <button class="date-btn" onclick="setYesterday(this)">어제</button>
       <button class="date-btn" onclick="setLastWeek(this)">지난주</button>
+      <button class="date-btn" onclick="setTwoWeeksAgo(this)">지지난주</button>
       <button class="date-btn" onclick="setThisMonth(this)">이번달</button>
       <button class="date-btn" onclick="setLastMonth(this)">지난달</button>
       <button class="date-btn" onclick="setPreset(this,7)">7일</button>
+      <button class="date-btn" onclick="setPreset(this,14)">14일</button>
       <button class="date-btn active" onclick="setPreset(this,30)">30일</button>
       <button class="date-btn" onclick="setPreset(this,90)">90일</button>
     </div>
@@ -1467,18 +1469,41 @@ function setYesterday(btn) {
   renderWithData();
 }
 
+function setTwoWeeksAgo(btn) {
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  var today = new Date();
+  var day = today.getDay();
+  var thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() - (day === 0 ? 7 : day) + 1);
+  // 지지난주 월요일 = 이번주 월요일 - 14
+  var twoMonday = new Date(thisMonday);
+  twoMonday.setDate(thisMonday.getDate() - 14);
+  // 지지난주 일요일 = 이번주 월요일 - 8
+  var twoSunday = new Date(thisMonday);
+  twoSunday.setDate(thisMonday.getDate() - 8);
+  document.getElementById('dateFrom').value = twoMonday.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = twoSunday.toISOString().slice(0, 10);
+  updateLabel();
+  saveDateRange();
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  renderWithData();
+}
+
 function setPreset(btn, days) {
   var btns = document.querySelectorAll('.date-btn');
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   btn.classList.add('active');
-  var to = new Date();
-  var from = new Date();
-  from.setDate(to.getDate() - days + 1);
+  var yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  var from = new Date(yesterday);
+  from.setDate(yesterday.getDate() - days + 1);
   document.getElementById('dateFrom').value = from.toISOString().slice(0, 10);
-  document.getElementById('dateTo').value   = to.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; // 날짜 바뀌면 캐시 초기화
+  sheetsCache.skechers = null; sheetsCache.minoxell = null;
   renderWithData();
 }
 
