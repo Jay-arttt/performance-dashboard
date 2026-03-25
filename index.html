@@ -1406,7 +1406,6 @@ function render() {
   var ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   var pm = sumData(bk, ck, PREV);
-  renderBudgetSection();
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
