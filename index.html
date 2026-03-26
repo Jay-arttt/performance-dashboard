@@ -1990,7 +1990,7 @@ function _renderBudgetBars(ym, budgets) {
       ]},
       { brand:'하이퍼', subs:[
         { label:'키친에이드',       key:'kitchenaid',         chs:['nbsa','nsa','ngfa'] },
-        { label:'키친에이드(코드리스)', key:'kitchenaid_codeless', chs:['nsa'] },
+        { label:'키친에이드<br><span style="font-size:9px;opacity:.7">코드리스</span>', key:'kitchenaid_codeless', chs:['nsa'] },
         { label:'에코백스',         key:'ecovacs',            chs:['nsa','ngfa'] },
         { label:'아노바',           key:'anova',              chs:['nsa','ngfa'] }
       ]}
@@ -2210,7 +2210,7 @@ function _renderBudgetBars(ym, budgets) {
 
       html += '<tr style="border-bottom:1px solid var(--border)">';
       html += '<td style="padding:11px 16px;color:var(--text);white-space:nowrap;font-weight:' + (showBrand ? '500' : '400') + '">' + (showBrand ? r.brand : '') + '</td>';
-      html += '<td style="padding:11px 16px;color:var(--text);opacity:.75;white-space:nowrap">' + (showSub ? r.sub : '') + '</td>';
+      html += '<td style="padding:11px 16px;color:var(--text);opacity:.75;line-height:1.4">' + (showSub ? r.sub : '') + '</td>';
       html += '<td style="padding:11px 16px;color:var(--text);opacity:.7;white-space:nowrap">' + r.ch + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:var(--text)">₩' + budget.toLocaleString('ko-KR') + '</td>';
       html += '<td style="padding:11px 16px;text-align:right;color:' + spentColor + ';font-weight:500">₩' + Math.round(spent2).toLocaleString('ko-KR') + '</td>';
