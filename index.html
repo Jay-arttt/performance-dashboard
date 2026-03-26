@@ -374,13 +374,22 @@ function showLoading(on) {
   if (el) el.style.display = on ? 'flex' : 'none';
 }
 
-// CSV 문자열 파싱
+// CSV 문자열 파싱 (따옴표 안 쉼표 처리)
 function parseCSV(text) {
-  var lines = text.trim().split('\n');
-  var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^"|"$/g, ''); });
+  // 셀 안 줄바꿈 제거
+  var cleaned = '';
+  var inQ = false;
+  for (var ci = 0; ci < text.length; ci++) {
+    var c = text[ci];
+    if (c === '"') { inQ = !inQ; cleaned += c; }
+    else if ((c === '\n' || c === '\r') && inQ) { cleaned += ' '; }
+    else { cleaned += c; }
+  }
+  var lines = cleaned.trim().split('\n');
+  var headers = splitCSVLine(lines[0]);
   var rows = [];
   for (var i = 1; i < lines.length; i++) {
-    var cols = lines[i].split(',').map(function(c) { return c.trim().replace(/^"|"$/g, ''); });
+    var cols = splitCSVLine(lines[i]);
     if (cols.length < 2) continue;
     var row = {};
     for (var j = 0; j < headers.length; j++) row[headers[j]] = cols[j] || '';
