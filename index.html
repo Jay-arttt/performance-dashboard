@@ -1951,13 +1951,13 @@ function _renderBudgetBars(ym, budgets) {
     }
     var remainDays = totalDays - elapsedDays;
 
-    var heads = ['브랜드','하위','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)','소진 목표액(일, 수수료 제외)'];
+    var heads = ['브랜드','하위','매체','예산','소진액','소진 계획(전일)','소진율','잔액','소진 목표액(일)','소진 목표액<br>(일, 수수료 제외)'];
     var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:11px">';
 
     // 헤더
     html += '<tr>';
     for (var h = 0; h < heads.length; h++) {
-      html += '<th style="padding:10px 16px;text-align:' + (h < 3 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap">' + heads[h] + '</th>';
+      html += '<th style="padding:10px 16px;text-align:' + (h < 3 ? 'left' : 'right') + ';color:var(--muted);font-weight:400;border-bottom:1px solid var(--border2);white-space:nowrap;line-height:1.4">' + heads[h] + '</th>';
     }
     html += '</tr>';
 
