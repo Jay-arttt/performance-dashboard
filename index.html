@@ -384,11 +384,11 @@ function parseCSV(text) {
   return rows;
 }
 
-// CSV 행 → 날짜별 합산 (네이버SA)
+// CSV 행 → 날짜별 합산 (네이버SA) → {nsa, nbsa} 분리
 function aggregateNSA(rows) {
-  var byDate = {};
-  // 컬럼명
+  var nsa = {}, nbsa = {};
   var COL_DATE = '일자';
+  var COL_TYPE = '캠페인유형';
   var COL_COST = '총비용(vat-)';
   var COL_IMPR = '노출수';
   var COL_CLICK = '클릭수';
@@ -399,14 +399,16 @@ function aggregateNSA(rows) {
     var r = rows[i];
     var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
     if (!dateStr) continue;
-    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-    byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
-    byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
-    byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
-    byDate[dateStr].conversions += Number(r[COL_CONV])  || 0;
-    byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
+    var isBSA = (r[COL_TYPE] || '').indexOf('브랜드검색') !== -1;
+    var target = isBSA ? nbsa : nsa;
+    if (!target[dateStr]) target[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    target[dateStr].cost        += Number(r[COL_COST])  || 0;
+    target[dateStr].impressions += Number(r[COL_IMPR])  || 0;
+    target[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
+    target[dateStr].conversions += Number(r[COL_CONV])  || 0;
+    target[dateStr].revenue     += Number(r[COL_REV])   || 0;
   }
-  return byDate;
+  return {nsa: nsa, nbsa: nbsa};
 }
 
 // CSV 행 → 날짜별 합산 (구글DA, mode: 'official' | 'app')
@@ -461,14 +463,17 @@ function sumByDateRange(byDate, dateFrom, dateTo) {
 }
 
 function buildSkechersRaw(parsed, dateFrom, dateTo) {
+  var empty = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
   return {
     skechers_official: {
       google: sumByDateRange(parsed.googleOfficial, dateFrom, dateTo),
-      nsa:    sumByDateRange(parsed.nsa,            dateFrom, dateTo)
+      nsa:    sumByDateRange(parsed.nsa,            dateFrom, dateTo),
+      nbsa:   sumByDateRange(parsed.nbsa || {},     dateFrom, dateTo)
     },
     skechers_app: {
-      google: sumByDateRange(parsed.googleApp,      dateFrom, dateTo),
-      nsa:    {cost:0, revenue:0, clicks:0, impressions:0, conversions:0}
+      google: sumByDateRange(parsed.googleApp, dateFrom, dateTo),
+      nsa:    empty,
+      nbsa:   empty
     }
   };
 }
@@ -492,10 +497,11 @@ function loadSkechers(callback) {
 
   Promise.all([nsaPromise, googlePromise])
     .then(function(results) {
-      var nsaRows    = parseCSV(results[0]);
+      var nsaResult  = aggregateNSA(parseCSV(results[0]));
       var googleRows = parseCSV(results[1]);
       var parsed = {
-        nsa:           aggregateNSA(nsaRows),
+        nsa:            nsaResult.nsa,
+        nbsa:           nsaResult.nbsa,
         googleOfficial: aggregateGoogleDA(googleRows, 'official'),
         googleApp:      aggregateGoogleDA(googleRows, 'app')
       };
@@ -568,11 +574,13 @@ function loadMinoxell(callback) {
     fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
-    var gfaResult = aggregateGFA(parseCSV(results[2]));
+    var nsaResult2 = aggregateNSA(parseCSV(results[0]));
+    var gfaResult  = aggregateGFA(parseCSV(results[2]));
     var parsed = {
-      nsa:           aggregateGeneric(parseCSV(results[0])),
-      meta:          aggregateGeneric(parseCSV(results[1])),
-      ngfa:          gfaResult.minoxell,
+      nsa:             nsaResult2.nsa,
+      nbsa:            nsaResult2.nbsa,
+      meta:            aggregateGeneric(parseCSV(results[1])),
+      ngfa:            gfaResult.minoxell,
       oliveyoung_ngfa: gfaResult.oliveyoung
     };
     sheetsCache.minoxell = parsed;
@@ -599,6 +607,7 @@ function renderWithData() {
       RAW.minoxell = {
         meta:   sumByDateRange(apiData.meta,  dateFrom, dateTo),
         nsa:    sumByDateRange(apiData.nsa,   dateFrom, dateTo),
+        nbsa:   sumByDateRange(apiData.nbsa || {}, dateFrom, dateTo),
         ngfa:   sumByDateRange(apiData.ngfa,  dateFrom, dateTo)
       };
       RAW.oliveyoung = {
@@ -609,6 +618,7 @@ function renderWithData() {
       PREV.minoxell = {
         meta:   sumByDateRange(apiData.meta,  prevRange.from, prevRange.to),
         nsa:    sumByDateRange(apiData.nsa,   prevRange.from, prevRange.to),
+        nbsa:   sumByDateRange(apiData.nbsa || {}, prevRange.from, prevRange.to),
         ngfa:   sumByDateRange(apiData.ngfa,  prevRange.from, prevRange.to)
       };
       PREV.oliveyoung = {
@@ -719,6 +729,7 @@ function getDayData(brKey, chKey, dateStr) {
     var p = sheetsCache.skechers;
     var byDate = null;
     if (brKey === 'skechers_official' && chKey === 'nsa')    byDate = p.nsa;
+    if (brKey === 'skechers_official' && chKey === 'nbsa')   byDate = p.nbsa;
     if (brKey === 'skechers_official' && chKey === 'google') byDate = p.googleOfficial;
     if (brKey === 'skechers_app'      && chKey === 'google') byDate = p.googleApp;
     if (byDate && byDate[dateStr]) return byDate[dateStr];
@@ -729,9 +740,9 @@ function getDayData(brKey, chKey, dateStr) {
     var pm = sheetsCache.minoxell;
     var byDateM = null;
     if (brKey === 'minoxell' && chKey === 'nsa')  byDateM = pm.nsa;
+    if (brKey === 'minoxell' && chKey === 'nbsa') byDateM = pm.nbsa;
     if (brKey === 'minoxell' && chKey === 'meta') byDateM = pm.meta;
     if (brKey === 'minoxell' && chKey === 'ngfa') byDateM = pm.ngfa;
-    // 올리브영 ngfa는 GFA 시트에서 분리된 데이터 사용
     if (brKey === 'oliveyoung' && chKey === 'ngfa') byDateM = pm.oliveyoung_ngfa;
     if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
     if (byDateM) return empty;
@@ -1883,11 +1894,20 @@ function _renderBudgetBars(ym, budgets) {
           var parsed = sheetsCache.skechers;
 
           if (parsed && sub.key === 'skechers_official') {
-            var byDateMap = chKey === 'nsa' ? parsed.nsa : parsed.googleOfficial;
+            var byDateMap = chKey === 'nsa' ? parsed.nsa : chKey === 'nbsa' ? (parsed.nbsa || {}) : parsed.googleOfficial;
             spent = sumByDateRange(byDateMap || {}, budgetDateFrom, budgetDateTo).cost || 0;
           } else if (parsed && sub.key === 'skechers_app') {
             var byDateMap2 = chKey === 'google' ? parsed.googleApp : {};
             spent = sumByDateRange(byDateMap2 || {}, budgetDateFrom, budgetDateTo).cost || 0;
+          } else if (sheetsCache.minoxell && (sub.key === 'minoxell' || sub.key === 'oliveyoung')) {
+            var pm2 = sheetsCache.minoxell;
+            var byDateMap3 = null;
+            if (sub.key === 'minoxell'   && chKey === 'nsa')  byDateMap3 = pm2.nsa;
+            if (sub.key === 'minoxell'   && chKey === 'nbsa') byDateMap3 = pm2.nbsa;
+            if (sub.key === 'minoxell'   && chKey === 'meta') byDateMap3 = pm2.meta;
+            if (sub.key === 'minoxell'   && chKey === 'ngfa') byDateMap3 = pm2.ngfa;
+            if (sub.key === 'oliveyoung' && chKey === 'ngfa') byDateMap3 = pm2.oliveyoung_ngfa;
+            spent = sumByDateRange(byDateMap3 || {}, budgetDateFrom, budgetDateTo).cost || 0;
           } else {
             var chData = sumData([sub.key], [chKey], RAW);
             spent = aggCalc(chData).cost || 0;
