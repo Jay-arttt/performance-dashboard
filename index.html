@@ -19,6 +19,9 @@
   --google: #f4a044;
   --ngfa: #03c75a;
   --nsa: #00b4d8;
+  --nbsa: #a78bfa;
+  --kakao: #f9d000;
+  --google_app: #fb923c;
   --hyper: #a78bfa;
   --up: #6ddf9a;
   --down: #f06060;
@@ -77,6 +80,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .ch-card[data-ch="google"]::before { background: var(--google); }
 .ch-card[data-ch="ngfa"]::before { background: var(--ngfa); }
 .ch-card[data-ch="nsa"]::before { background: var(--nsa); }
+.ch-card[data-ch="nbsa"]::before { background: var(--nbsa); }
+.ch-card[data-ch="kakao"]::before { background: var(--kakao); }
+.ch-card[data-ch="google_app"]::before { background: var(--google_app); }
 .ch-name { font-size: 12px; font-weight: 500; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
 .ch-name .dot { width: 6px; height: 6px; border-radius: 50%; }
 .ch-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -137,6 +143,9 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 .ch-pill.google { background: rgba(244,160,68,.15);  color: var(--google); }
 .ch-pill.ngfa   { background: rgba(3,199,90,.15);    color: var(--ngfa); }
 .ch-pill.nsa    { background: rgba(0,180,216,.15);   color: var(--nsa); }
+.ch-pill.nbsa   { background: rgba(167,139,250,.15); color: var(--nbsa); }
+.ch-pill.kakao  { background: rgba(249,208,0,.15);   color: var(--kakao); }
+.ch-pill.google_app { background: rgba(251,146,60,.15); color: var(--google_app); }
 
 /* Column dropdown */
 .col-dropdown-btn { font-family:'DM Mono',monospace; font-size:11px; padding:5px 12px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text); cursor:pointer; display:flex; align-items:center; gap:2px; white-space:nowrap; }
@@ -257,8 +266,11 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
     <button class="tab active" data-ch="all" onclick="setCh(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
     <button class="tab" data-ch="meta" onclick="setCh(this)"><span class="dot" style="background:var(--meta)"></span>Meta</button>
     <button class="tab" data-ch="google" onclick="setCh(this)"><span class="dot" style="background:var(--google)"></span>Google</button>
+    <button class="tab" data-ch="google_app" onclick="setCh(this)"><span class="dot" style="background:var(--google_app)"></span>Google (App)</button>
+    <button class="tab" data-ch="kakao" onclick="setCh(this)"><span class="dot" style="background:var(--kakao)"></span>Kakao</button>
     <button class="tab" data-ch="ngfa" onclick="setCh(this)"><span class="dot" style="background:var(--ngfa)"></span>네이버 GFA</button>
     <button class="tab" data-ch="nsa" onclick="setCh(this)"><span class="dot" style="background:var(--nsa)"></span>네이버 SA</button>
+    <button class="tab" data-ch="nbsa" onclick="setCh(this)"><span class="dot" style="background:var(--nbsa)"></span>네이버 BSA</button>
   </div>
 </div>
 
@@ -328,14 +340,14 @@ tbody td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; fon
 <script>
 var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
 var RAW = {
-  skechers_official: {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  skechers_app:      {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  minoxell:          {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  oliveyoung:        {meta:EMPTY, ngfa:EMPTY},
-  careerbud:         {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  kitchenaid:        {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  ecovacs:           {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY},
-  anova:             {meta:EMPTY, google:EMPTY, ngfa:EMPTY, nsa:EMPTY}
+  skechers_official: {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  skechers_app:      {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  minoxell:          {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  oliveyoung:        {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  careerbud:         {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  kitchenaid:        {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  ecovacs:           {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
+  anova:             {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY}
 };
 
 // ── Google Sheets CSV 연동 ────────────────────────────────────────────────────
@@ -659,11 +671,11 @@ var HYPER_SUBS     = ['kitchenaid', 'ecovacs', 'anova'];
 var SKECHERS_SUBS  = ['skechers_official', 'skechers_app'];
 var MYNOXCEL_SUBS  = ['minoxell', 'oliveyoung'];
 var ALL_BRANDS = ['skechers_official', 'skechers_app', 'minoxell', 'oliveyoung', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
-var CHS = ['meta', 'google', 'ngfa', 'nsa'];
-var CH_NAME  = {meta: 'Meta', google: 'Google Ads', ngfa: '네이버 GFA', nsa: '네이버 SA'};
-var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)'};
-var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', ngfa: '#03c75a', nsa: '#00b4d8'};
-var CH_SHORT = {meta: 'Meta', google: 'Google', ngfa: 'N.GFA', nsa: 'N.SA'};
+var CHS = ['meta', 'google', 'kakao', 'ngfa', 'nsa', 'nbsa'];
+var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버 GFA', nsa: '네이버 SA', nbsa: '네이버 BSA'};
+var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', kakao: 'var(--kakao)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)', nbsa: 'var(--nbsa)'};
+var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', kakao: '#f9d000', ngfa: '#03c75a', nsa: '#00b4d8', nbsa: '#a78bfa'};
+var CH_SHORT = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: 'N.GFA', nsa: 'N.SA', nbsa: 'N.BSA'};
 
 var CHART_METRICS = [
   {key: 'cost',        label: '비용',   type: 'won',  color: '#4f8ef7'},
@@ -1615,58 +1627,65 @@ function updateLabel() {
   document.getElementById('rangeLabel').textContent = f.replace(/-/g, '.') + ' — ' + t.replace(/-/g, '.');
 }
 
-// ── 예산 현황 (Google Sheets CSV 연동) ─────────────────────────────────────────
-var BUDGET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjLq8cpPkrwvor2C6zNvTTtExwXISiHYfI9IE6rnlhizKK0nYVj6WV3kCCOZolwmImKtKkFClW073s/pub';
-var BUDGET_GIDS = {
-  '2026-01': '0',
-  '2026-02': '1449092166',
-  '2026-03': '306715474',
-  '2026-04': '1397025198',
-  '2026-05': '843340349',
-  '2026-06': '1382615900'
+// ── 예산 현황 (단일 시트, 월별 컬럼) ─────────────────────────────────────────
+var BUDGET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjLq8cpPkrwvor2C6zNvTTtExwXISiHYfI9IE6rnlhizKK0nYVj6WV3kCCOZolwmImKtKkFClW073s/pub?gid=1313684885&single=true&output=csv';
+
+var budgetCache = {}; // { allData: [...rows], parsed: {ym: {key: budget}} }
+
+// 시트 매체명 → 대시보드 채널키 매핑
+var BUDGET_CH_MAP = {
+  'N.BSA': 'nbsa', 'N.SA': 'nsa', 'N.GFA': 'ngfa',
+  'Meta': 'meta', 'Google': 'google', 'Kakao': 'kakao'
 };
 
-var BUDGET_CHS = [
-  {key:'meta',   label:'Meta'},
-  {key:'google', label:'Google'},
-  {key:'ngfa',   label:'N.GFA'},
-  {key:'nsa',    label:'N.SA'}
+// 시트 브랜드/세부 → 대시보드 브랜드키 매핑
+// brand, sub, ch → storageKey (brand__ch 또는 특수키)
+var BUDGET_BRAND_MAP = [
+  {brand:'마이녹셀',  sub:'',          ch:'N.BSA', key:'minoxell__nbsa'},
+  {brand:'마이녹셀',  sub:'',          ch:'N.SA',  key:'minoxell__nsa'},
+  {brand:'마이녹셀',  sub:'',          ch:'N.GFA', key:'minoxell__ngfa'},
+  {brand:'마이녹셀',  sub:'',          ch:'Meta',  key:'minoxell__meta'},
+  {brand:'마이녹셀',  sub:'올리브영',  ch:'Meta',  key:'oliveyoung__meta'},
+  {brand:'마이녹셀',  sub:'올리브영',  ch:'N.GFA', key:'oliveyoung__ngfa'},
+  {brand:'하이퍼',    sub:'키친에이드',ch:'N.BSA', key:'kitchenaid__nbsa'},
+  {brand:'하이퍼',    sub:'키친에이드',ch:'N.SA',  key:'kitchenaid__nsa'},
+  {brand:'하이퍼',    sub:'키친에이드(코드리스)',ch:'N.SA', key:'kitchenaid_codeless__nsa'},
+  {brand:'하이퍼',    sub:'키친에이드',ch:'N.GFA', key:'kitchenaid__ngfa'},
+  {brand:'하이퍼',    sub:'에코백스',  ch:'N.SA',  key:'ecovacs__nsa'},
+  {brand:'하이퍼',    sub:'에코백스',  ch:'N.GFA', key:'ecovacs__ngfa'},
+  {brand:'하이퍼',    sub:'아노바',    ch:'N.SA',  key:'anova__nsa'},
+  {brand:'하이퍼',    sub:'아노바',    ch:'N.GFA', key:'anova__ngfa'},
+  {brand:'스케쳐스',  sub:'공식몰',    ch:'N.SA',  key:'skechers_official__nsa'},
+  {brand:'스케쳐스',  sub:'앱',        ch:'Kakao', key:'skechers_app__kakao'},
+  {brand:'스케쳐스',  sub:'공식몰',    ch:'Google',key:'skechers_official__google'},
+  {brand:'스케쳐스',  sub:'앱',        ch:'Google',key:'skechers_app__google'},
+  {brand:'커리어벗',  sub:'',          ch:'N.BSA', key:'careerbud__nbsa'},
+  {brand:'커리어벗',  sub:'',          ch:'Google',key:'careerbud__google'},
+  {brand:'커리어벗',  sub:'',          ch:'Meta',  key:'careerbud__meta'}
 ];
 
-var budgetCache = {}; // 월별 캐시 — 페이지 로드 시 초기화
-
-// 예산 기간 상태 (독립적으로 관리)
+// 예산 기간 상태
 var budgetPeriod = {year: '2026', month: '03'};
 
 function buildBudgetPeriodSelector() {
-  var years = [], monthsByYear = {};
-  Object.keys(BUDGET_GIDS).sort().forEach(function(ym) {
-    var y = ym.slice(0,4), m = ym.slice(5,7);
-    if (years.indexOf(y) === -1) years.push(y);
-    if (!monthsByYear[y]) monthsByYear[y] = [];
-    monthsByYear[y].push(m);
-  });
+  // 연도: 하드코딩 or 동적
+  var years = ['2026', '2027'];
+  var monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
-  // 연도 드롭박스
   var yearSel = document.getElementById('budgetYearSelect');
   yearSel.innerHTML = years.map(function(y) {
     return '<option value="' + y + '"' + (y===budgetPeriod.year?' selected':'') + '>' + y + '년</option>';
   }).join('');
 
-  // 월 드롭박스 (선택된 연도 기준)
-  var monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  var months = monthsByYear[budgetPeriod.year] || [];
   var monthSel = document.getElementById('budgetMonthSelect');
-  monthSel.innerHTML = months.map(function(m) {
-    return '<option value="' + m + '"' + (m===budgetPeriod.month?' selected':'') + '>' + monthNames[parseInt(m,10)-1] + '</option>';
+  monthSel.innerHTML = monthNames.map(function(label, idx) {
+    var m = String(idx+1).padStart(2,'0');
+    return '<option value="' + m + '"' + (m===budgetPeriod.month?' selected':'') + '>' + label + '</option>';
   }).join('');
 }
 
 function setBudgetYear(y) {
   budgetPeriod.year = y;
-  // 해당 연도 첫 번째 월로 자동 선택
-  var found = Object.keys(BUDGET_GIDS).filter(function(ym){ return ym.slice(0,4)===y; }).sort();
-  if (found.length) budgetPeriod.month = found[0].slice(5,7);
   buildBudgetPeriodSelector();
   renderBudgetSection();
 }
@@ -1687,142 +1706,96 @@ function monthDays(dateStr) {
   var d = new Date(dateStr);
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 }
-// 날짜에서 YYYY-MM 추출
 function getYearMonth(dateStr) {
   return dateStr ? dateStr.slice(0, 7) : '';
 }
 
-// CSV 한 줄을 쉼표 구분으로 파싱 (따옴표 안의 쉼표 처리)
+// CSV 한 줄 파싱
 function splitCSVLine(line) {
-  var cols = [];
-  var cur = '';
-  var inQuote = false;
+  var cols = [], cur = '', inQuote = false;
   for (var i = 0; i < line.length; i++) {
     var ch = line[i];
-    if (ch === '"') {
-      inQuote = !inQuote;
-    } else if (ch === ',' && !inQuote) {
-      cols.push(cur.trim());
-      cur = '';
-    } else {
-      cur += ch;
-    }
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
   }
   cols.push(cur.trim());
   return cols;
 }
 
-// 예산 숫자 추출 (₩, 공백, 쉼표 제거)
 function parseBudgetNum(str) {
-  var clean = str.replace(/₩/g,'').replace(/\s/g,'').replace(/,/g,'').replace(/[^0-9.]/g,'');
+  var clean = (str || '').replace(/₩/g,'').replace(/\s/g,'').replace(/,/g,'').replace(/[^0-9.]/g,'');
   return Number(clean) || 0;
 }
 
-// 시트 브랜드명 + 매체명 → 대시보드 키 매핑 테이블
-var BUDGET_MAP = [
-  {sheetBrand:'스케쳐스',         sheetCh:'SA',               brand:'skechers_official', ch:'nsa'},
-  {sheetBrand:'스케쳐스',         sheetCh:'구글 (공식몰)',      brand:'skechers_official', ch:'google'},
-  {sheetBrand:'스케쳐스',         sheetCh:'구글 (앱설치)',      brand:'skechers_app',      ch:'google'},
-  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검',           brand:'kitchenaid',        ch:'nsa'},
-  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA 쇼검(코드리스)', brand:'kitchenaid',        ch:'nsa'},
-  {sheetBrand:'하이퍼_키친에이드', sheetCh:'SA_파링',           brand:'kitchenaid',        ch:'nsa'},
-  {sheetBrand:'하이퍼_키친에이드', sheetCh:'GFA',               brand:'kitchenaid',        ch:'ngfa'},
-  {sheetBrand:'하이퍼_키친에이드', sheetCh:'GFA_애드',          brand:'kitchenaid',        ch:'ngfa'},
-  {sheetBrand:'하이퍼_에코백스',   sheetCh:'SA',               brand:'ecovacs',           ch:'nsa'},
-  {sheetBrand:'하이퍼_에코백스',   sheetCh:'GFA_일반',          brand:'ecovacs',           ch:'ngfa'},
-  {sheetBrand:'하이퍼_에코백스',   sheetCh:'GFA_애드부스트',    brand:'ecovacs',           ch:'ngfa'},
-  {sheetBrand:'하이퍼_아노바',     sheetCh:'SA',               brand:'anova',             ch:'nsa'},
-  {sheetBrand:'하이퍼_아노바',     sheetCh:'GFA_애드',          brand:'anova',             ch:'ngfa'},
-  {sheetBrand:'커리어벗',          sheetCh:'구글',              brand:'careerbud',         ch:'google'},
-  {sheetBrand:'커리어벗',          sheetCh:'메타',              brand:'careerbud',         ch:'meta'},
-  {sheetBrand:'마이녹셀',          sheetCh:'네이버 SA',         brand:'minoxell',          ch:'nsa'},
-  {sheetBrand:'마이녹셀',          sheetCh:'네이버 GFA',        brand:'minoxell',          ch:'ngfa'},
-  {sheetBrand:'마이녹셀',          sheetCh:'메타',              brand:'minoxell',          ch:'meta'},
-  {sheetBrand:'마이녹셀',          sheetCh:'올리브영 메타',      brand:'oliveyoung',        ch:'meta'},
-  {sheetBrand:'마이녹셀',          sheetCh:'올리브영 GFA (트래픽)', brand:'oliveyoung',     ch:'ngfa'}
-];
-
-// 유효한 브랜드명 목록 (소계/기타 행 걸러내기 위해)
-var VALID_SHEET_BRANDS = ['스케쳐스','하이퍼_키친에이드','하이퍼_에코백스','하이퍼_아노바','커리어벗','마이녹셀','올리브영'];
-
-// CSV에서 예산 데이터 파싱 → { 'brandKey__chKey': 월예산 }
-function parseBudgetCSV(text) {
-  // 줄바꿈이 포함된 셀 처리: 따옴표 안의 \n 제거 후 파싱
+// 새 시트 파싱: 헤더에서 월 컬럼 인덱스 찾아서 { storageKey: 월예산 } 반환
+function parseBudgetSheet(text, targetMonth) {
+  // targetMonth: '03' 형태
   var cleaned = '';
   var inQ = false;
   for (var ci = 0; ci < text.length; ci++) {
     var c = text[ci];
     if (c === '"') { inQ = !inQ; cleaned += c; }
-    else if ((c === '\n' || c === '\r') && inQ) { cleaned += ' '; } // 셀 안 줄바꿈 → 공백
+    else if ((c === '\n' || c === '\r') && inQ) { cleaned += ' '; }
     else { cleaned += c; }
   }
 
   var lines = cleaned.trim().split('\n');
   if (lines.length < 2) return {};
 
-  // 행 전체가 따옴표로 감싸진 경우 벗겨내기
-  function unwrapRow(line) {
-    var s = line.trim();
-    if (s.charAt(0) === '"' && s.charAt(s.length-1) === '"') {
-      s = s.slice(1, s.length-1).replace(/""/g, '"');
-    }
-    return s;
-  }
+  var headers = splitCSVLine(lines[0]);
+  // 헤더: 브랜드,세부,매체,연간,12월,1월,2월,...
+  // 월 컬럼 찾기: "1월"~"12월"
+  var monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var targetLabel = monthNames[parseInt(targetMonth,10)-1];
 
-  var headers = splitCSVLine(unwrapRow(lines[0]));
-  var iBrand  = headers.indexOf('브랜드');
-  var iCh     = headers.indexOf('매체');
-  var iBudget = headers.indexOf('예산');
-  if (iBrand < 0 || iCh < 0 || iBudget < 0) {
-    console.warn('예산 시트 헤더 못 찾음:', headers);
-    return {};
+  // 헤더에 같은 월 이름이 여러 번 나올 수 있으므로 마지막 인덱스 사용 (현재 연도)
+  var monthIdx = -1;
+  for (var h = 0; h < headers.length; h++) {
+    if (headers[h].trim() === targetLabel) monthIdx = h;
   }
+  if (monthIdx < 0) { console.warn('월 컬럼 못 찾음:', targetLabel, headers); return {}; }
 
   var out = {};
-  var lastBrand = '';
+  var lastBrand = '', lastSub = '';
 
   for (var i = 1; i < lines.length; i++) {
-    var cols = splitCSVLine(unwrapRow(lines[i]));
-    var rawBrand = (cols[iBrand] || '').trim();
+    var cols = splitCSVLine(lines[i]);
+    var rawBrand = (cols[0] || '').trim();
+    var rawSub   = (cols[1] || '').trim();
+    var rawCh    = (cols[2] || '').trim();
 
-    // 유효한 브랜드명이면 업데이트, 소계/기타면 lastBrand 유지
-    if (rawBrand && VALID_SHEET_BRANDS.indexOf(rawBrand) !== -1) {
-      lastBrand = rawBrand;
-    } else if (rawBrand && rawBrand.indexOf('소계') !== -1) {
-      lastBrand = ''; // 소계 행 이후 브랜드 초기화
-      continue;
-    }
+    if (rawBrand) lastBrand = rawBrand;
+    if (rawSub)   lastSub   = rawSub;
+    else if (rawBrand) lastSub = ''; // 브랜드 바뀌면 세부 초기화
 
-    var sheetBrand = lastBrand;
-    var sheetCh    = (cols[iCh] || '').trim();
-    var budget     = parseBudgetNum(cols[iBudget] || '');
-    if (!budget || !sheetBrand || !sheetCh) continue;
+    var budget = parseBudgetNum(cols[monthIdx] || '');
+    if (!budget || !lastBrand || !rawCh) continue;
 
-    // 브랜드+매체 조합이 매핑 테이블에 있는 경우에만 처리
-    var matched = false;
-    for (var m = 0; m < BUDGET_MAP.length; m++) {
-      if (BUDGET_MAP[m].sheetBrand === sheetBrand && BUDGET_MAP[m].sheetCh === sheetCh) {
-        var key = BUDGET_MAP[m].brand + '__' + BUDGET_MAP[m].ch;
-        out[key] = (out[key] || 0) + budget;
-        matched = true;
+    // BUDGET_BRAND_MAP에서 매칭
+    for (var m = 0; m < BUDGET_BRAND_MAP.length; m++) {
+      var rule = BUDGET_BRAND_MAP[m];
+      if (rule.brand === lastBrand && rule.sub === lastSub && rule.ch === rawCh) {
+        out[rule.key] = (out[rule.key] || 0) + budget;
         break;
       }
     }
-    // matched 여부와 무관하게 다음 행으로
   }
   return out;
 }
 
 function loadBudgetForMonth(ym, callback) {
-  if (budgetCache[ym]) { callback(budgetCache[ym]); return; }
-  var gid = BUDGET_GIDS[ym];
-  if (!gid) { callback({}); return; }
-  var url = BUDGET_BASE + '?gid=' + gid + '&single=true&output=csv';
-  fetch(url)
+  // 전체 시트를 한 번만 로드하고 캐시
+  if (budgetCache.raw) {
+    var parsed = parseBudgetSheet(budgetCache.raw, ym.slice(5,7));
+    callback(parsed);
+    return;
+  }
+  fetch(BUDGET_URL)
     .then(function(r){ return r.text(); })
     .then(function(text){
-      var parsed = parseBudgetCSV(text);
-      budgetCache[ym] = parsed;
+      budgetCache.raw = text;
+      var parsed = parseBudgetSheet(text, ym.slice(5,7));
       callback(parsed);
     })
     .catch(function(){ callback({}); });
@@ -1862,23 +1835,24 @@ function _renderBudgetBars(ym, budgets) {
     var BUDGET_STRUCTURE = [
       { brand:'스케쳐스', subs:[
         { label:'공식몰', key:'skechers_official', chs:['nsa','google'] },
-        { label:'앱',     key:'skechers_app',      chs:['google'] }
+        { label:'앱',     key:'skechers_app',      chs:['kakao','google'] }
       ]},
       { brand:'마이녹셀', subs:[
-        { label:'마이녹셀', key:'minoxell',    chs:['meta','nsa','ngfa'] },
+        { label:'마이녹셀', key:'minoxell',    chs:['meta','nbsa','nsa','ngfa'] },
         { label:'올리브영', key:'oliveyoung',  chs:['meta','ngfa'] }
       ]},
       { brand:'커리어벗', subs:[
-        { label:'', key:'careerbud', chs:['meta','ngfa','google'] }
+        { label:'', key:'careerbud', chs:['meta','nbsa','google'] }
       ]},
       { brand:'하이퍼', subs:[
-        { label:'키친에이드', key:'kitchenaid', chs:['nsa','ngfa'] },
-        { label:'에코백스',   key:'ecovacs',    chs:['nsa','ngfa'] },
-        { label:'아노바',     key:'anova',      chs:['nsa','ngfa'] }
+        { label:'키친에이드',       key:'kitchenaid',         chs:['nbsa','nsa','ngfa'] },
+        { label:'키친에이드(코드리스)', key:'kitchenaid_codeless', chs:['nsa'] },
+        { label:'에코백스',         key:'ecovacs',            chs:['nsa','ngfa'] },
+        { label:'아노바',           key:'anova',              chs:['nsa','ngfa'] }
       ]}
     ];
 
-    var CH_LABEL_MAP = {meta:'Meta', nsa:'N.SA', ngfa:'N.GFA', google:'Google'};
+    var CH_LABEL_MAP = {meta:'Meta', nsa:'N.SA', ngfa:'N.GFA', google:'Google', kakao:'Kakao', nbsa:'N.BSA'};
 
     var rows = [];
     // 예산 달의 1일~말일
