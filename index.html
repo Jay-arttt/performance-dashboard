@@ -362,6 +362,11 @@ var CSV_URLS_MINOXELL = {
   ngfa: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1678752996&single=true&output=csv'
 };
 
+var CSV_URLS_HYPER = {
+  nsa:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuU4aEsm0x1DLxgThPD-iwkGtUPVAC5Pg9-uxoc4R1bjmYzedEwo38vfpH0yQ-HjJa9raxWe0PcYR/pub?gid=1105059263&single=true&output=csv',
+  ngfa: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuU4aEsm0x1DLxgThPD-iwkGtUPVAC5Pg9-uxoc4R1bjmYzedEwo38vfpH0yQ-HjJa9raxWe0PcYR/pub?gid=713595739&single=true&output=csv'
+};
+
 var sheetsCache = {};
 
 function showLoading(on) {
@@ -488,6 +493,98 @@ function buildSkechersPrev(parsed, dateFrom, dateTo) {
   return buildSkechersRaw(parsed, pf, pt);
 }
 
+// 하이퍼 네이버SA: 브랜드 컬럼 + 캠페인유형으로 분리
+function aggregateHyperNSA(rows) {
+  var out = {}; // { 'kitchenaid__nsa': byDate, 'kitchenaid__nbsa': byDate, ... }
+  var BRAND_MAP = {'키친에이드': 'kitchenaid', '에코백스': 'ecovacs', '아노바': 'anova'};
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var brandKr = (r['브랜드'] || '').trim();
+    var brKey = BRAND_MAP[brandKr];
+    if (!brKey) continue;
+    var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
+    var chKey = isBSA ? 'nbsa' : 'nsa';
+    var storageKey = brKey + '__' + chKey;
+    if (!out[storageKey]) out[storageKey] = {};
+    if (!out[storageKey][dateStr]) out[storageKey][dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    out[storageKey][dateStr].cost        += Number(r['총비용(vat-)'])      || 0;
+    out[storageKey][dateStr].impressions += Number(r['노출수'])             || 0;
+    out[storageKey][dateStr].clicks      += Number(r['클릭수'])             || 0;
+    out[storageKey][dateStr].conversions += Number(r['구매완료 전환수'])     || 0;
+    out[storageKey][dateStr].revenue     += Number(r['구매완료 매출액'])     || 0;
+  }
+  return out;
+}
+
+// 하이퍼 네이버DA(GFA): 캠페인명으로 브랜드 구분
+function aggregateHyperNGFA(rows) {
+  var out = {};
+  var BRAND_KEYWORDS = [
+    {keyword:'키친에이드', key:'kitchenaid'},
+    {keyword:'에코백스',   key:'ecovacs'},
+    {keyword:'아노바',     key:'anova'}
+  ];
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    // 날짜: '일별' 컬럼, 2026.02.28. 형태
+    var rawDate = r['일별'] || '';
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    var camp = (r['캠페인명'] || '').toLowerCase();
+    var brKey = null;
+    for (var k = 0; k < BRAND_KEYWORDS.length; k++) {
+      if (camp.indexOf(BRAND_KEYWORDS[k].keyword) !== -1) { brKey = BRAND_KEYWORDS[k].key; break; }
+    }
+    if (!brKey) continue;
+    var storageKey = brKey + '__ngfa';
+    if (!out[storageKey]) out[storageKey] = {};
+    if (!out[storageKey][dateStr]) out[storageKey][dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    out[storageKey][dateStr].cost        += Number(r['총비용(vat-)'])      || 0;
+    out[storageKey][dateStr].impressions += Number(r['노출수'])             || 0;
+    out[storageKey][dateStr].clicks      += Number(r['클릭수'])             || 0;
+    out[storageKey][dateStr].conversions += Number(r['구매완료 전환수'])     || 0;
+    out[storageKey][dateStr].revenue     += Number(r['구매완료 매출액'])     || 0;
+  }
+  return out;
+}
+
+function loadHyper(callback) {
+  if (sheetsCache.hyper) { callback(sheetsCache.hyper); return; }
+  showLoading(true);
+  Promise.all([
+    fetch(CSV_URLS_HYPER.nsa).then(function(r){ return r.text(); }),
+    fetch(CSV_URLS_HYPER.ngfa).then(function(r){ return r.text(); })
+  ])
+  .then(function(results) {
+    var nsaData  = aggregateHyperNSA(parseCSV(results[0]));
+    var ngfaData = aggregateHyperNGFA(parseCSV(results[1]));
+    // 합치기
+    var parsed = {};
+    var keys = Object.keys(nsaData).concat(Object.keys(ngfaData));
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (!parsed[k]) parsed[k] = {};
+      var src = nsaData[k] || ngfaData[k];
+      var dates = Object.keys(src);
+      for (var j = 0; j < dates.length; j++) {
+        parsed[k][dates[j]] = src[dates[j]];
+      }
+    }
+    sheetsCache.hyper = parsed;
+    showLoading(false);
+    callback(parsed);
+  })
+  .catch(function(err) {
+    showLoading(false);
+    console.error('하이퍼 Sheets 로드 실패:', err);
+    callback(null);
+  });
+}
+
 function loadSkechers(callback) {
   if (sheetsCache.skechers) { callback(sheetsCache.skechers); return; }
   showLoading(true);
@@ -594,56 +691,75 @@ function loadMinoxell(callback) {
   });
 }
 
+function applyHyper(apiData, dateFrom, dateTo) {
+  if (!apiData) return;
+  var prevRange = getPrevRange(dateFrom, dateTo);
+  var HYPER_BRANDS = ['kitchenaid', 'ecovacs', 'anova'];
+  var HYPER_CHS    = ['nsa', 'nbsa', 'ngfa'];
+  for (var bi = 0; bi < HYPER_BRANDS.length; bi++) {
+    var br = HYPER_BRANDS[bi];
+    if (!RAW[br]) RAW[br] = {};
+    if (!PREV[br]) PREV[br] = {};
+    for (var ci = 0; ci < HYPER_CHS.length; ci++) {
+      var ch = HYPER_CHS[ci];
+      var key = br + '__' + ch;
+      var byDate = apiData[key] || {};
+      RAW[br][ch]  = sumByDateRange(byDate, dateFrom, dateTo);
+      PREV[br][ch] = sumByDateRange(byDate, prevRange.from, prevRange.to);
+    }
+  }
+}
+
+function applyMinoxell(apiData, dateFrom, dateTo) {
+  if (!apiData) return;
+  var prevRange = getPrevRange(dateFrom, dateTo);
+  RAW.minoxell = {
+    meta:   sumByDateRange(apiData.meta,       dateFrom, dateTo),
+    nsa:    sumByDateRange(apiData.nsa,        dateFrom, dateTo),
+    nbsa:   sumByDateRange(apiData.nbsa || {}, dateFrom, dateTo),
+    ngfa:   sumByDateRange(apiData.ngfa,       dateFrom, dateTo)
+  };
+  RAW.oliveyoung = {
+    meta:   RAW.oliveyoung ? RAW.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
+  };
+  PREV.minoxell = {
+    meta:   sumByDateRange(apiData.meta,       prevRange.from, prevRange.to),
+    nsa:    sumByDateRange(apiData.nsa,        prevRange.from, prevRange.to),
+    nbsa:   sumByDateRange(apiData.nbsa || {}, prevRange.from, prevRange.to),
+    ngfa:   sumByDateRange(apiData.ngfa,       prevRange.from, prevRange.to)
+  };
+  PREV.oliveyoung = {
+    meta:   PREV.oliveyoung ? PREV.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to)
+  };
+}
+
+function applySkechers(apiData, dateFrom, dateTo) {
+  if (!apiData) return;
+  var built = buildSkechersRaw(apiData, dateFrom, dateTo);
+  RAW.skechers_official = built.skechers_official;
+  RAW.skechers_app      = built.skechers_app;
+  var prev = buildSkechersPrev(apiData, dateFrom, dateTo);
+  PREV.skechers_official = prev.skechers_official;
+  PREV.skechers_app      = prev.skechers_app;
+}
+
 // render 오버라이드: 실제 데이터 브랜드면 API 호출
 function renderWithData() {
   var needsSkechers = (S.brand === 'skechers' || S.brand === 'all');
   var needsMinoxell = (S.brand === 'minoxell' || S.brand === 'all');
+  var needsHyper    = (S.brand === 'hyper'    || S.brand === 'all');
 
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo   = document.getElementById('dateTo').value;
 
-  function applyMinoxell(apiData) {
-    if (apiData) {
-      RAW.minoxell = {
-        meta:   sumByDateRange(apiData.meta,  dateFrom, dateTo),
-        nsa:    sumByDateRange(apiData.nsa,   dateFrom, dateTo),
-        nbsa:   sumByDateRange(apiData.nbsa || {}, dateFrom, dateTo),
-        ngfa:   sumByDateRange(apiData.ngfa,  dateFrom, dateTo)
-      };
-      RAW.oliveyoung = {
-        meta:   RAW.oliveyoung ? RAW.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
-        ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
-      };
-      var prevRange = getPrevRange(dateFrom, dateTo);
-      PREV.minoxell = {
-        meta:   sumByDateRange(apiData.meta,  prevRange.from, prevRange.to),
-        nsa:    sumByDateRange(apiData.nsa,   prevRange.from, prevRange.to),
-        nbsa:   sumByDateRange(apiData.nbsa || {}, prevRange.from, prevRange.to),
-        ngfa:   sumByDateRange(apiData.ngfa,  prevRange.from, prevRange.to)
-      };
-      PREV.oliveyoung = {
-        meta:   PREV.oliveyoung ? PREV.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
-        ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to)
-      };
-    }
-  }
-
-  function applySkechers(apiData) {
-    if (apiData) {
-      var built = buildSkechersRaw(apiData, dateFrom, dateTo);
-      RAW.skechers_official = built.skechers_official;
-      RAW.skechers_app      = built.skechers_app;
-      var prev = buildSkechersPrev(apiData, dateFrom, dateTo);
-      PREV.skechers_official = prev.skechers_official;
-      PREV.skechers_app      = prev.skechers_app;
-    }
-  }
-
-  if (!needsSkechers && !needsMinoxell) { render(); return; }
+  if (!needsSkechers && !needsMinoxell && !needsHyper) { render(); return; }
 
   var tasks = [];
-  if (needsSkechers) tasks.push(new Promise(function(res) { loadSkechers(function(d){ applySkechers(d); res(); }); }));
-  if (needsMinoxell) tasks.push(new Promise(function(res) { loadMinoxell(function(d){ applyMinoxell(d); res(); }); }));
+  if (needsSkechers) tasks.push(new Promise(function(res) { loadSkechers(function(d){ applySkechers(d, dateFrom, dateTo); res(); }); }));
+  if (needsMinoxell) tasks.push(new Promise(function(res) { loadMinoxell(function(d){ applyMinoxell(d, dateFrom, dateTo); res(); }); }));
+  if (needsHyper)    tasks.push(new Promise(function(res) { loadHyper(function(d){ applyHyper(d, dateFrom, dateTo); res(); }); }));
 
   Promise.all(tasks).then(function() { render(); });
 }
@@ -746,6 +862,13 @@ function getDayData(brKey, chKey, dateStr) {
     if (brKey === 'oliveyoung' && chKey === 'ngfa') byDateM = pm.oliveyoung_ngfa;
     if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
     if (byDateM) return empty;
+  }
+  // 하이퍼 실제 데이터
+  if (sheetsCache.hyper) {
+    var key = brKey + '__' + chKey;
+    var byDateH = sheetsCache.hyper[key];
+    if (byDateH && byDateH[dateStr]) return byDateH[dateStr];
+    if (byDateH) return empty;
   }
   // 샘플 데이터 브랜드: RAW 합산값을 날짜 수로 나눠서 근사
   if (RAW[brKey] && RAW[brKey][chKey]) return empty; // 샘플은 일별 없음
@@ -1505,7 +1628,7 @@ function setThisMonth(btn) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1521,7 +1644,7 @@ function setLastMonth(btn) {
   document.getElementById('dateTo').value   = lastOfLastMonth.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1566,7 +1689,7 @@ function setLastWeek(btn) {
   document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1581,7 +1704,7 @@ function setYesterday(btn) {
   document.getElementById('dateTo').value   = d;
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1603,7 +1726,7 @@ function setTwoWeeksAgo(btn) {
   document.getElementById('dateTo').value   = twoSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1619,7 +1742,7 @@ function setPreset(btn, days) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
   renderWithData();
 }
 
@@ -1628,7 +1751,7 @@ function applyRange() {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; // 날짜 바뀌면 캐시 초기화
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
 
@@ -1825,11 +1948,12 @@ function renderBudgetSection() {
     });
   }
 
-  if (!sheetsCache.skechers || !sheetsCache.minoxell) {
+  if (!sheetsCache.skechers || !sheetsCache.minoxell || !sheetsCache.hyper) {
     var pending = 0;
     function checkDone() { pending--; if (pending === 0) doRender(); }
     if (!sheetsCache.skechers) { pending++; loadSkechers(function(){ checkDone(); }); }
     if (!sheetsCache.minoxell) { pending++; loadMinoxell(function(){ checkDone(); }); }
+    if (!sheetsCache.hyper)    { pending++; loadHyper(function(){ checkDone(); }); }
   } else {
     doRender();
   }
@@ -1872,10 +1996,16 @@ function _renderBudgetBars(ym, budgets) {
     var budgetDateTo   = ym + '-' + (mDays2 < 10 ? '0' + mDays2 : '' + mDays2);
 
     // 브랜드 × 매체별 수수료율 (예산 현황 전용)
+    // 마이녹셀 메타 수수료: 2026년 3월부터 18.3%, 1~2월은 15%
+    var minoxellMetaFee = 0.183;
+    if (budgetPeriod.year === '2026' && parseInt(budgetPeriod.month, 10) <= 2) {
+      minoxellMetaFee = 0.15;
+    }
+
     var FEE_RATES = {
       'skechers_official__google': 0.15,
       'skechers_app__google':      0.15,
-      'minoxell__meta':            0.183,
+      'minoxell__meta':            minoxellMetaFee,
       'careerbud__google':         0.183,
       'careerbud__meta':           0.183
     };
@@ -1908,6 +2038,10 @@ function _renderBudgetBars(ym, budgets) {
             if (sub.key === 'minoxell'   && chKey === 'ngfa') byDateMap3 = pm2.ngfa;
             if (sub.key === 'oliveyoung' && chKey === 'ngfa') byDateMap3 = pm2.oliveyoung_ngfa;
             spent = sumByDateRange(byDateMap3 || {}, budgetDateFrom, budgetDateTo).cost || 0;
+          } else if (sheetsCache.hyper) {
+            var hyperKey = sub.key + '__' + chKey;
+            var byDateH2 = sheetsCache.hyper[hyperKey] || {};
+            spent = sumByDateRange(byDateH2, budgetDateFrom, budgetDateTo).cost || 0;
           } else {
             var chData = sumData([sub.key], [chKey], RAW);
             spent = aggCalc(chData).cost || 0;
