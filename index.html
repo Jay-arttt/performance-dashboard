@@ -2109,7 +2109,10 @@ function _renderBudgetBars(ym, budgets) {
     var lastSubLabel   = '';
     var brandTotals = {}; // { brand: { budget, spent, plan } }
 
-    // 브랜드별 합산 미리 계산
+    // 브랜드별 합산 미리 계산 + 마이녹셀은 하위별 합산도
+    var brandTotals = {};
+    var subTotals   = {}; // 'brand__sub' → {budget, spent, plan}
+
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       var plan0 = totalDays > 0 ? Math.round(r.monthBudget / totalDays * elapsedDays) : 0;
@@ -2117,10 +2120,18 @@ function _renderBudgetBars(ym, budgets) {
       brandTotals[r.brand].budget += r.monthBudget;
       brandTotals[r.brand].spent  += r.spent;
       brandTotals[r.brand].plan   += plan0;
+      var subKey = r.brand + '__' + r.sub;
+      if (!subTotals[subKey]) subTotals[subKey] = {label:r.sub, budget:0, spent:0, plan:0};
+      subTotals[subKey].budget += r.monthBudget;
+      subTotals[subKey].spent  += r.spent;
+      subTotals[subKey].plan   += plan0;
     }
 
-    function renderSubtotalRow(brand) {
-      var t = brandTotals[brand];
+    // 하위 소계가 필요한 브랜드 (하위가 2개 이상)
+    var BRANDS_WITH_SUBTOTALS = ['마이녹셀'];
+
+    function renderSubtotalRow(brand, label, totals, isSubRow) {
+      var t = totals;
       if (!t) return '';
       var pct  = t.budget > 0 ? t.spent / t.budget * 100 : 0;
       var rem  = t.budget - t.spent;
@@ -2131,12 +2142,19 @@ function _renderBudgetBars(ym, budgets) {
         var dp = (t.spent - t.plan) / t.plan * 100;
         if (dp >= 5) sc = 'var(--down)'; else if (dp <= -5) sc = 'var(--google)';
       }
-      var dg   = remainDays > 0 ? Math.round(rem / remainDays) : 0;
-      var row  = '<tr style="border-top:1px solid var(--border2);background:rgba(255,255,255,0.03)">';
-      row += '<td style="padding:9px 16px;color:var(--text);font-weight:500;white-space:nowrap">' + brand + '</td>';
-      row += '<td style="padding:9px 16px;color:var(--muted);font-size:10px">소계</td>';
-      row += '<td style="padding:9px 16px"></td>';
-      row += '<td style="padding:9px 16px;text-align:right;color:var(--text);font-weight:500">₩' + t.budget.toLocaleString('ko-KR') + '</td>';
+      var dg  = remainDays > 0 ? Math.round(rem / remainDays) : 0;
+      var bg  = isSubRow ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+      var row = '<tr style="border-top:1px solid var(--border2);background:' + bg + '">';
+      if (isSubRow) {
+        row += '<td style="padding:8px 16px"></td>';
+        row += '<td style="padding:8px 16px;color:var(--text);font-weight:500;white-space:nowrap">' + label + '</td>';
+        row += '<td style="padding:8px 16px;color:var(--muted);font-size:10px">소계</td>';
+      } else {
+        row += '<td style="padding:9px 16px;color:var(--text);font-weight:600;white-space:nowrap">' + brand + '</td>';
+        row += '<td style="padding:9px 16px;color:var(--muted);font-size:10px">소계</td>';
+        row += '<td style="padding:9px 16px"></td>';
+      }
+      row += '<td style="padding:9px 16px;text-align:right;font-weight:500">₩' + t.budget.toLocaleString('ko-KR') + '</td>';
       row += '<td style="padding:9px 16px;text-align:right;color:' + sc + ';font-weight:500">₩' + Math.round(t.spent).toLocaleString('ko-KR') + '</td>';
       row += '<td style="padding:9px 16px;text-align:right;color:var(--text);opacity:.75">₩' + t.plan.toLocaleString('ko-KR') + '</td>';
       row += '<td style="padding:5px 16px;text-align:right;min-width:90px"><div style="position:relative;height:22px;border-radius:4px;overflow:hidden;background:var(--bg3);min-width:80px"><div style="position:absolute;left:0;top:0;height:100%;width:' + fw + '%;background:' + fc + ';opacity:.3;border-radius:4px"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-weight:600;color:' + fc + '">' + pct.toFixed(1) + '%</div></div></td>';
@@ -2166,9 +2184,23 @@ function _renderBudgetBars(ym, budgets) {
         else if (diffPct <= -5) spentColor = 'var(--google)';
       }
 
-      // 브랜드 바뀌기 전에 소계 삽입
-      if (lastBrandLabel && r.brand !== lastBrandLabel) {
-        html += renderSubtotalRow(lastBrandLabel);
+      // 브랜드 또는 하위 바뀌기 전에 소계 삽입
+      if (lastBrandLabel) {
+        var brandChanged = (r.brand !== lastBrandLabel);
+        var subChanged   = !brandChanged && (r.sub !== lastSubLabel);
+        var needsSubTotal = BRANDS_WITH_SUBTOTALS.indexOf(lastBrandLabel) !== -1;
+
+        if (brandChanged) {
+          // 하위 소계가 필요한 브랜드면 마지막 하위 소계 먼저
+          if (needsSubTotal && lastSubLabel) {
+            html += renderSubtotalRow(lastBrandLabel, lastSubLabel, subTotals[lastBrandLabel + '__' + lastSubLabel], true);
+          }
+          // 브랜드 소계
+          html += renderSubtotalRow(lastBrandLabel, '', brandTotals[lastBrandLabel], false);
+        } else if (subChanged && needsSubTotal) {
+          // 같은 브랜드 내 하위 바뀔 때 하위 소계
+          html += renderSubtotalRow(lastBrandLabel, lastSubLabel, subTotals[lastBrandLabel + '__' + lastSubLabel], true);
+        }
       }
 
       var showBrand = (r.brand !== lastBrandLabel);
@@ -2200,7 +2232,12 @@ function _renderBudgetBars(ym, budgets) {
       html += '</tr>';
     }
     // 마지막 브랜드 소계
-    if (lastBrandLabel) html += renderSubtotalRow(lastBrandLabel);
+    if (lastBrandLabel) {
+      if (BRANDS_WITH_SUBTOTALS.indexOf(lastBrandLabel) !== -1 && lastSubLabel) {
+        html += renderSubtotalRow(lastBrandLabel, lastSubLabel, subTotals[lastBrandLabel + '__' + lastSubLabel], true);
+      }
+      html += renderSubtotalRow(lastBrandLabel, '', brandTotals[lastBrandLabel], false);
+    }
     html += '</table></div>';
     barsEl.innerHTML = html;
 }
