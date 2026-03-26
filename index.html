@@ -552,11 +552,11 @@ function aggregateHyperNGFA(rows) {
     var storageKey = brKey + '__ngfa';
     if (!out[storageKey]) out[storageKey] = {};
     if (!out[storageKey][dateStr]) out[storageKey][dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-    out[storageKey][dateStr].cost        += Number(r['총비용(vat-)'])      || 0;
-    out[storageKey][dateStr].impressions += Number(r['노출수'])             || 0;
-    out[storageKey][dateStr].clicks      += Number(r['클릭수'])             || 0;
-    out[storageKey][dateStr].conversions += Number(r['구매완료 전환수'])     || 0;
-    out[storageKey][dateStr].revenue     += Number(r['구매완료 매출액'])     || 0;
+    out[storageKey][dateStr].cost        += Number((r['총비용(vat-)']      || '').replace(/,/g,'')) || 0;
+    out[storageKey][dateStr].impressions += Number((r['노출수']             || '').replace(/,/g,'')) || 0;
+    out[storageKey][dateStr].clicks      += Number((r['클릭수']             || '').replace(/,/g,'')) || 0;
+    out[storageKey][dateStr].conversions += Number((r['구매완료 전환수']     || '').replace(/,/g,'')) || 0;
+    out[storageKey][dateStr].revenue     += Number((r['구매완료 매출액']     || '').replace(/,/g,'')) || 0;
   }
   return out;
 }
