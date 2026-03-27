@@ -514,6 +514,11 @@ function aggregateHyperNSA(rows) {
     var brandKr = (r['브랜드'] || '').trim();
     var brKey = BRAND_MAP[brandKr];
     if (!brKey) continue;
+    // 키친에이드 중 캠페인명에 '코드리스' 포함되면 별도 키로
+    var campName = (r['캠페인명'] || '');
+    if (brKey === 'kitchenaid' && campName.indexOf('코드리스') !== -1) {
+      brKey = 'kitchenaid_codeless';
+    }
     var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
     var chKey = isBSA ? 'nbsa' : 'nsa';
     var storageKey = brKey + '__' + chKey;
