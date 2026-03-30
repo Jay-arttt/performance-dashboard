@@ -138,7 +138,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 .roas-val { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; width: 44px; text-align: right; flex-shrink: 0; }
 
 /* Table */
-.table-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.table-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
 .table-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; }
 table { width: 100%; border-collapse: collapse; }
 thead th { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; padding: 9px 14px; text-align: center; border-bottom: 1px solid var(--border); font-weight: 700; background: var(--bg3); transition: color .12s; }
@@ -343,10 +343,12 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 <div class="table-section" style="margin-top:16px">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <span>캠페인별 데이터</span>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:12px;color:var(--muted)">매체 선택</span>
-      <select id="campChSelect" onchange="renderCampaignTable()" style="font-family:'Noto Sans KR',sans-serif;font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer">
-      </select>
+    <div style="position:relative">
+      <button class="col-dropdown-btn" id="campColDropBtn" onclick="toggleCampColDrop()">
+        컬럼 선택 <span id="campColCount"></span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:4px;vertical-align:middle"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="col-dropdown" id="campColDropdown" style="display:none"></div>
     </div>
   </div>
   <div style="overflow-x:auto">
@@ -1593,6 +1595,41 @@ var TABLE_COLS = [
   {key:'cpm',         label:'CPM',    type:'cpc'}
 ];
 var selectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
+var campSelectedCols = ['cost','revenue','roas','conversions','cpa','clicks','ctr','impressions'];
+
+function buildCampColDropdown() {
+  var html = '';
+  for (var i = 0; i < TABLE_COLS.length; i++) {
+    var col = TABLE_COLS[i];
+    var active = campSelectedCols.indexOf(col.key) !== -1;
+    html += '<div class="col-item ' + (active ? 'col-active' : '') + '" onclick="toggleCampCol(\'' + col.key + '\')">';
+    html += '<div class="col-check"></div>' + col.label + '</div>';
+  }
+  document.getElementById('campColDropdown').innerHTML = html;
+  document.getElementById('campColCount').textContent = '(' + campSelectedCols.length + '/' + TABLE_COLS.length + ')';
+}
+
+function toggleCampColDrop() {
+  var dd = document.getElementById('campColDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleCampCol(key) {
+  var idx = campSelectedCols.indexOf(key);
+  if (idx !== -1) {
+    if (campSelectedCols.length <= 1) return;
+    campSelectedCols.splice(idx, 1);
+  } else {
+    campSelectedCols.push(key);
+    campSelectedCols.sort(function(a, b) {
+      var ai = TABLE_COLS.findIndex(function(c){ return c.key === a; });
+      var bi = TABLE_COLS.findIndex(function(c){ return c.key === b; });
+      return ai - bi;
+    });
+  }
+  buildCampColDropdown();
+  renderCampaignTable();
+}
 
 function buildColDropdown() {
   var html = '';
@@ -1614,6 +1651,7 @@ function toggleColDrop() {
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.table-header')) {
     document.getElementById('colDropdown').style.display = 'none';
+    document.getElementById('campColDropdown').style.display = 'none';
   }
 });
 
@@ -1791,54 +1829,61 @@ function updateCampChSelect() {
 }
 
 function renderCampaignTable() {
-  var sel = document.getElementById('campChSelect');
-  if (!sel) return;
-  var chKey    = sel.value;
-  var bk       = brandKeys();
+  var ck = chKeys();
+  var bk = brandKeys();
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo   = document.getElementById('dateTo').value;
 
-  // 매체별 데이터와 동일한 컬럼 사용
-  var CAMP_COLS = TABLE_COLS.filter(function(c){ return selectedCols.indexOf(c.key) !== -1; })
-    .sort(function(a, b){ return selectedCols.indexOf(a.key) - selectedCols.indexOf(b.key); });
+  // 선택된 매체가 여러 개면 첫 번째 실제 매체 사용, 전체면 CHS 순으로 데이터 있는 첫 번째
+  var activeChs = ck.indexOf('all') !== -1 ? CHS : ck;
 
-  // 헤더
+  var CAMP_COLS = TABLE_COLS.filter(function(c){ return campSelectedCols.indexOf(c.key) !== -1; })
+    .sort(function(a, b){ return campSelectedCols.indexOf(a.key) - campSelectedCols.indexOf(b.key); });
+  buildCampColDropdown();
+
+  // 헤더 (매체 컬럼 추가)
   var headHtml = '<th style="padding:9px 14px;text-align:left;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">캠페인명</th>';
+  if (activeChs.length > 1) {
+    headHtml += '<th style="padding:9px 14px;text-align:left;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">매체</th>';
+  }
   for (var j = 0; j < CAMP_COLS.length; j++) {
     headHtml += '<th style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">' + CAMP_COLS[j].label + '</th>';
   }
   document.getElementById('campTableHead').innerHTML = headHtml;
 
-  // 캠페인 데이터 합산 (브랜드 여러 개면 합산)
-  var merged = {};
-  for (var bi = 0; bi < bk.length; bi++) {
-    var campData = getCampaignData(bk[bi], chKey, dateFrom, dateTo);
-    var camps = Object.keys(campData);
-    for (var ci = 0; ci < camps.length; ci++) {
-      var name = camps[ci];
-      var d    = campData[name];
-      if (!merged[name]) merged[name] = {name:name, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-      merged[name].cost        += d.cost;
-      merged[name].impressions += d.impressions;
-      merged[name].clicks      += d.clicks;
-      merged[name].conversions += d.conversions;
-      merged[name].revenue     += d.revenue;
+  // 매체별로 캠페인 합산
+  var allRows = []; // {name, ch, cost, ...}
+  for (var ci = 0; ci < activeChs.length; ci++) {
+    var chKey = activeChs[ci];
+    var merged = {};
+    for (var bi = 0; bi < bk.length; bi++) {
+      var campData = getCampaignData(bk[bi], chKey, dateFrom, dateTo);
+      var camps = Object.keys(campData);
+      for (var k = 0; k < camps.length; k++) {
+        var name = camps[k];
+        var d = campData[name];
+        if (!merged[name]) merged[name] = {name:name, ch:chKey, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+        merged[name].cost        += d.cost;
+        merged[name].impressions += d.impressions;
+        merged[name].clicks      += d.clicks;
+        merged[name].conversions += d.conversions;
+        merged[name].revenue     += d.revenue;
+      }
     }
+    var chRows = Object.values(merged).filter(function(r){ return r.impressions > 0 || r.conversions > 0; });
+    chRows.sort(function(a,b){ return b.cost - a.cost; });
+    allRows = allRows.concat(chRows);
   }
 
-  // 비용 내림차순 정렬
-  var campRows = Object.values(merged).sort(function(a, b){ return b.cost - a.cost; });
-
-  if (campRows.length === 0) {
-    document.getElementById('campTbody').innerHTML = '<tr><td colspan="' + (CAMP_COLS.length+1) + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
+  if (allRows.length === 0) {
+    document.getElementById('campTbody').innerHTML = '<tr><td colspan="' + (CAMP_COLS.length + (activeChs.length > 1 ? 2 : 1)) + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
     return;
   }
 
   var html = '';
   var total = {cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-  for (var i = 0; i < campRows.length; i++) {
-    var r = campRows[i];
-    if (r.impressions === 0 && r.conversions === 0) continue;
+  for (var i = 0; i < allRows.length; i++) {
+    var r = allRows[i];
     var d2 = calc(r);
     total.cost        += r.cost;
     total.impressions += r.impressions;
@@ -1847,16 +1892,21 @@ function renderCampaignTable() {
     total.revenue     += r.revenue;
     html += '<tr style="border-bottom:1px solid var(--border)">';
     html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</td>';
+    if (activeChs.length > 1) {
+      html += '<td style="padding:10px 14px;font-size:11px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
+    }
     for (var j = 0; j < CAMP_COLS.length; j++) {
       html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">' + fmt(d2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
     }
     html += '</tr>';
   }
-  // 합계 행
-  if (campRows.length > 1) {
+
+  // 합계
+  if (allRows.length > 1) {
     var tc2 = calc(total);
     html += '<tr style="border-top:2px solid var(--border2);background:var(--bg3)">';
     html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:600">합계</td>';
+    if (activeChs.length > 1) html += '<td></td>';
     for (var j = 0; j < CAMP_COLS.length; j++) {
       html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">' + fmt(tc2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
     }
@@ -1877,16 +1927,38 @@ function sortTable(key) {
   renderTable(cm, ck);
 }
 
+function filterChTabs() {
+  var bk = brandKeys();
+  var tabs = document.querySelectorAll('#chTabs .tab');
+  for (var i = 0; i < tabs.length; i++) {
+    var ch = tabs[i].getAttribute('data-ch');
+    if (ch === 'all') continue;
+    // 해당 채널에 데이터가 있는지 확인
+    var hasData = false;
+    for (var bi = 0; bi < bk.length; bi++) {
+      var d = RAW[bk[bi]] && RAW[bk[bi]][ch];
+      if (d && (d.impressions > 0 || d.conversions > 0)) { hasData = true; break; }
+    }
+    tabs[i].style.display = hasData ? '' : 'none';
+    // 선택된 탭이 숨겨지면 '전체'로 리셋
+    if (!hasData && tabs[i].classList.contains('active')) {
+      tabs[i].classList.remove('active');
+      S.ch = ['all'];
+      document.querySelector('#chTabs .tab[data-ch="all"]').classList.add('active');
+    }
+  }
+}
+
 function render() {
   var bk = brandKeys();
   var ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   var pm = sumData(bk, ck, PREV);
+  filterChTabs();
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
   renderTable(cm, ck);
-  updateCampChSelect();
   renderCampaignTable();
 }
 
