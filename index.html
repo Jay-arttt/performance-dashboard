@@ -365,7 +365,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
     </table>
   </div>
   <style>#campTableWrap::-webkit-scrollbar{display:none}</style>
-  <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;position:sticky;bottom:0;z-index:3;background:var(--bg2);border-top:1px solid var(--border)">
+  <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;background:var(--bg2);border-top:1px solid var(--border)">
     <div id="campScrollbarInner" style="height:10px"></div>
   </div>
 </div>
@@ -2309,8 +2309,11 @@ function syncCampScrollbar() {
     var tbl   = document.getElementById('campTable');
     if (!wrap || !bar || !inner || !tbl) return;
 
+    // 스크롤바 너비 = 테이블 실제 너비
     inner.style.width = tbl.scrollWidth + 'px';
+    bar.style.width   = wrap.clientWidth + 'px';
 
+    // 테이블과 스크롤바 가로 스크롤 동기화
     var syncing = false;
     wrap.onscroll = function() {
       if (syncing) return; syncing = true;
@@ -2322,6 +2325,32 @@ function syncCampScrollbar() {
       wrap.scrollLeft = bar.scrollLeft;
       syncing = false;
     };
+
+    // window scroll 시 스크롤바를 화면 하단에 고정
+    function updateBarPosition() {
+      var wrapRect = wrap.getBoundingClientRect();
+      var vh = window.innerHeight;
+      // 테이블이 화면에 걸쳐있을 때만 표시
+      if (wrapRect.top < vh && wrapRect.bottom > 0 && wrapRect.bottom > vh) {
+        // 화면 아래로 잘렸을 때 → 하단에 고정
+        bar.style.position = 'fixed';
+        bar.style.bottom   = '0';
+        bar.style.left     = wrapRect.left + 'px';
+        bar.style.width    = wrapRect.width + 'px';
+        bar.style.display  = 'block';
+        bar.style.zIndex   = '999';
+      } else {
+        // 테이블 전체가 보일 때 → 일반 흐름
+        bar.style.position = 'static';
+        bar.style.width    = '100%';
+        bar.style.display  = wrapRect.bottom <= 0 ? 'none' : 'block';
+        bar.style.zIndex   = '';
+      }
+    }
+
+    window.addEventListener('scroll', updateBarPosition, {passive: true});
+    window.addEventListener('resize', updateBarPosition, {passive: true});
+    updateBarPosition();
   });
 }
 
