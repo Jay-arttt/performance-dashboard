@@ -302,6 +302,18 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   <div class="budget-bars" id="budgetBars" style="display:none"></div>
 </div>
 
+<div id="commentSection" style="margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <span style="font-size:14px;font-weight:500;font-family:'Noto Sans KR',sans-serif" id="commentTitle">코멘트</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="generateComment()" id="aiCommentBtn" style="font-family:'Noto Sans KR',sans-serif;font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer">✦ AI 초안 생성</button>
+      <button onclick="saveComment()" style="font-family:'Noto Sans KR',sans-serif;font-size:11px;padding:5px 12px;border-radius:6px;border:none;background:var(--text);color:var(--bg);cursor:pointer">저장</button>
+    </div>
+  </div>
+  <textarea id="commentBox" placeholder="이 브랜드/기간에 대한 코멘트를 입력하세요..." style="width:100%;min-height:80px;font-family:'Noto Sans KR',sans-serif;font-size:13px;line-height:1.7;border:1px solid var(--border2);border-radius:8px;padding:10px 12px;background:var(--bg3);color:var(--text);resize:vertical;outline:none" oninput="onCommentInput()"></textarea>
+  <div id="commentSaveStatus" style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right;height:14px"></div>
+</div>
+
 <div class="kpi-grid" id="kpiGrid"></div>
 
 <div class="chart-section">
@@ -1127,6 +1139,7 @@ function renderWithData() {
   Promise.all(tasks).then(function() { render(); });
 }
 
+// ── 코멘트 기능 ────────────────────────────────────────────────────────────────
 function getPrevRange(dateFrom, dateTo) {
   var f = new Date(dateFrom), t = new Date(dateTo);
   var diff = t - f;
@@ -2308,12 +2321,110 @@ function filterChTabs() {
   }
 }
 
+// ── 코멘트 기능 ──────────────────────────────────────────────────────────────
+
+function commentKey() {
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+  return 'comment__' + S.brand + '__' + dateFrom + '__' + dateTo;
+}
+
+function loadComment() {
+  var box = document.getElementById('commentBox');
+  var title = document.getElementById('commentTitle');
+  if (!box) return;
+  var brandLabel = {'all':'전체','skechers':'스케쳐스','minoxell':'마이녹셀','careerbud':'커리어벗','hyper':'하이퍼'}[S.brand] || S.brand;
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+  title.textContent = brandLabel + ' 코멘트 (' + dateFrom.replace(/-/g,'.') + ' — ' + dateTo.replace(/-/g,'.') + ')';
+  var saved = localStorage.getItem(commentKey()) || '';
+  box.value = saved;
+  document.getElementById('commentSaveStatus').textContent = saved ? '저장된 코멘트 불러옴' : '';
+}
+
+var commentTimer = null;
+function onCommentInput() {
+  clearTimeout(commentTimer);
+  commentTimer = setTimeout(function(){ saveComment(true); }, 1500);
+}
+
+function saveComment(auto) {
+  var box = document.getElementById('commentBox');
+  if (!box) return;
+  localStorage.setItem(commentKey(), box.value);
+  var status = document.getElementById('commentSaveStatus');
+  status.textContent = auto ? '자동 저장됨' : '저장 완료 ✓';
+  setTimeout(function(){ status.textContent = ''; }, 2000);
+}
+
+function generateComment() {
+  var btn = document.getElementById('aiCommentBtn');
+  var box = document.getElementById('commentBox');
+  if (!box || !btn) return;
+
+  btn.textContent = '생성 중...';
+  btn.disabled = true;
+
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  var pm = sumData(bk, ck, PREV);
+  var ca = cm ? Object.assign({}, cm) : {};
+  var pa = pm ? Object.assign({}, pm) : {};
+
+  // KPI 요약 텍스트 구성
+  function d(key, type) {
+    var v = ca[key] || 0, p = pa[key] || 0;
+    var diff = v - p;
+    var arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '→';
+    return fmt(v, type) + ' (' + arrow + fmt(Math.abs(diff), type) + ')';
+  }
+  var brandLabel = {'all':'전체','skechers':'스케쳐스','minoxell':'마이녹셀','careerbud':'커리어벗','hyper':'하이퍼'}[S.brand] || S.brand;
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+
+  var prompt = '다음은 ' + brandLabel + ' 광고 성과 데이터입니다 (' + dateFrom + ' ~ ' + dateTo + ').\n\n'
+    + '비용: ' + d('cost','won') + '\n'
+    + '매출: ' + d('revenue','won') + '\n'
+    + 'ROAS: ' + d('roas','roas') + '\n'
+    + '전환수: ' + d('conversions','num') + '\n'
+    + 'CPA: ' + d('cpa','cpc') + '\n'
+    + '클릭수: ' + d('clicks','num') + '\n'
+    + 'CTR: ' + d('ctr','pct') + '\n'
+    + '노출수: ' + d('impressions','num') + '\n\n'
+    + '괄호 안은 이전 동기간 대비 증감입니다. '
+    + '위 데이터를 바탕으로 주요 성과 특이사항과 개선 포인트를 3~5줄로 간결하게 한국어로 작성해주세요. '
+    + '불릿 포인트(•) 형식으로 작성해주세요.';
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{role:'user', content: prompt}]
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var text = (data.content && data.content[0] && data.content[0].text) || '생성 실패';
+    box.value = text;
+    btn.textContent = '✦ AI 초안 생성';
+    btn.disabled = false;
+  })
+  .catch(function(){
+    btn.textContent = '✦ AI 초안 생성';
+    btn.disabled = false;
+    box.value = 'AI 생성 중 오류가 발생했어요.';
+  });
+}
+
 function render() {
   var bk = brandKeys();
   var ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   var pm = sumData(bk, ck, PREV);
   filterChTabs();
+  loadComment();
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
