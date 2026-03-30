@@ -149,7 +149,7 @@ tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--bg3); }
 tbody td { padding: 11px 14px; text-align: right; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
 tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 500; color: var(--text); }
-.ch-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.ch-pill { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-align: center; line-height: 1.3; }
 .ch-pill.meta   { background: rgba(79,142,247,.15);  color: var(--meta); }
 .ch-pill.google { background: rgba(244,160,68,.15);  color: var(--google); }
 .ch-pill.ngfa   { background: rgba(3,199,90,.15);    color: var(--ngfa); }
@@ -325,12 +325,15 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 <div class="table-section">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <span>매체별 데이터</span>
-    <div style="position:relative">
-      <button class="col-dropdown-btn" id="colDropBtn" onclick="toggleColDrop()">
-        컬럼 선택 <span id="colCount"></span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:4px;vertical-align:middle"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div class="col-dropdown" id="colDropdown" style="display:none"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="tablePrevBtn" class="date-btn" onclick="toggleTablePrev()" style="font-size:11px;padding:4px 12px;border-radius:6px">동기간 비교</button>
+      <div style="position:relative">
+        <button class="col-dropdown-btn" id="colDropBtn" onclick="toggleColDrop()">
+          컬럼 선택 <span id="colCount"></span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:4px;vertical-align:middle"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="col-dropdown" id="colDropdown" style="display:none"></div>
+      </div>
     </div>
   </div>
   <div style="overflow-x:auto">
@@ -1166,7 +1169,7 @@ var SKECHERS_SUBS  = ['skechers_official', 'skechers_app'];
 var MYNOXCEL_SUBS  = ['minoxell', 'oliveyoung'];
 var ALL_BRANDS = ['skechers_official', 'skechers_app', 'minoxell', 'oliveyoung', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
 var CHS = ['meta', 'google', 'kakao', 'ngfa', 'nsa', 'nbsa'];
-var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버 GFA', nsa: '네이버 SA', nbsa: '네이버 BSA'};
+var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버<br>GFA', nsa: '네이버<br>SA', nbsa: '네이버<br>BSA'};
 var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', kakao: 'var(--kakao)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)', nbsa: 'var(--nbsa)'};
 var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', kakao: '#f9d000', ngfa: '#03c75a', nsa: '#00b4d8', nbsa: '#a78bfa'};
 var CH_SHORT = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: 'N.GFA', nsa: 'N.SA', nbsa: 'N.BSA'};
@@ -1761,7 +1764,7 @@ function buildCampColDropdown() {
   for (var i = 0; i < TABLE_COLS.length; i++) {
     var col = TABLE_COLS[i];
     var active = campSelectedCols.indexOf(col.key) !== -1;
-    html += '<div class="col-item ' + (active ? 'col-active' : '') + '" onclick="toggleCampCol(\'' + col.key + '\')">';
+    html += '<div class="col-item ' + (active ? 'col-active' : '') + '" onclick="event.stopPropagation();toggleCampCol(\'' + col.key + '\')">';
     html += '<div class="col-check"></div>' + col.label + '</div>';
   }
   document.getElementById('campColDropdown').innerHTML = html;
@@ -1869,6 +1872,20 @@ function getEffectiveCols() {
 var tableSort     = {key: null, asc: true};
 var campTableSort = {key: 'cost', asc: false};
 var campPrevMode  = false;
+var tablePrevMode = false;
+
+function toggleTablePrev() {
+  tablePrevMode = !tablePrevMode;
+  var btn = document.getElementById('tablePrevBtn');
+  if (btn) {
+    btn.style.background  = tablePrevMode ? 'var(--text)' : 'transparent';
+    btn.style.color       = tablePrevMode ? 'var(--bg)'   : 'var(--muted)';
+    btn.style.borderColor = tablePrevMode ? 'var(--text)' : 'var(--border2)';
+  }
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderTable(cm, ck);
+}
 
 function toggleCampPrev() {
   campPrevMode = !campPrevMode;
@@ -1913,7 +1930,7 @@ function buildColDropdown() {
     var active = selectedCols.indexOf(col.key) !== -1;
     var cls = 'col-item' + (active ? ' col-active' : '') + (isExcluded ? ' col-disabled' : '');
     var title = isExcluded ? ' title="' + S.brand + ' 브랜드에서 사용 안 함"' : '';
-    html += '<div class="' + cls + '"' + title + ' onclick="' + (isExcluded ? '' : 'toggleCol(\'' + col.key + '\')') + '">';
+    html += '<div class="' + cls + '"' + title + ' onclick="event.stopPropagation();' + (isExcluded ? '' : 'toggleCol(\'' + col.key + '\')') + '">';
     html += '<div class="col-check"></div>' + label + (isExcluded ? ' <span style="opacity:.4;font-size:10px">제외</span>' : '') + '</div>';
   }
   document.getElementById('colDropdown').innerHTML = html;
@@ -1969,15 +1986,34 @@ function renderTable(cm, ck) {
     total.conversions += d.conversions || 0;
   }
 
+  // 이전 동기간 데이터
+  var pm2 = null;
+  if (tablePrevMode) {
+    var bk2 = brandKeys();
+    pm2 = sumData(bk2, ck, PREV);
+  }
+
   for (var i = 0; i < visibleRows.length; i++) {
     var c = visibleRows[i].ch;
     var d = visibleRows[i].data;
-    html += '<tr><td><span class="ch-pill ' + c + '">' + CH_NAME[c] + '</span></td>';
+    html += '<tr style="border-bottom:' + (tablePrevMode ? 'none' : '1px solid var(--border)') + '"><td><span class="ch-pill ' + c + '">' + CH_NAME[c] + '</span></td>';
     for (var j = 0; j < activeCols.length; j++) {
       var col = activeCols[j];
       html += '<td>' + fmt(d[col.key], col.type) + '</td>';
     }
     html += '</tr>';
+
+    // 이전 동기간 서브 행
+    if (tablePrevMode && pm2) {
+      var pd = calcExtended(pm2[c] || {cost:0,revenue:0,clicks:0,impressions:0,conversions:0});
+      html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.07)">';
+      html += '<td style="padding:3px 14px 6px 18px;font-size:10px;color:#3b7de9;font-weight:500;font-family:\'Noto Sans KR\',sans-serif">↳ 이전 동기간</td>';
+      for (var j = 0; j < activeCols.length; j++) {
+        var col = activeCols[j];
+        html += '<td style="padding:3px 14px 6px;font-size:11px;color:#374151;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums;text-align:right">' + fmt(pd[col.key], col.type) + changeArrow(d[col.key], pd[col.key], col.type) + '</td>';
+      }
+      html += '</tr>';
+    }
   }
 
   // 합계 행
