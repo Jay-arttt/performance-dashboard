@@ -110,7 +110,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 
 /* SVG line chart */
 .lc-grid line { stroke: rgba(255,255,255,.05); stroke-width: 1; }
-.lc-axis-text { font-family: 'Inter', sans-serif; font-size: 8px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.lc-axis-text { font-family: 'Inter', sans-serif; font-size: 7px; fill: var(--muted); font-variant-numeric: tabular-nums; }
 .lc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .lc-dot { stroke-width: 2; cursor: pointer; }
 
@@ -337,6 +337,23 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
+<div class="card" style="margin-top:16px">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <span>캠페인별 데이터</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">매체 선택</span>
+      <select id="campChSelect" onchange="renderCampaignTable()" style="font-family:'Noto Sans KR',sans-serif;font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer">
+      </select>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table id="campTable" style="width:100%;border-collapse:collapse">
+      <thead><tr id="campTableHead"></tr></thead>
+      <tbody id="campTbody"></tbody>
+    </table>
+  </div>
+</div>
+
 </div><!-- /page-wrap -->
 <script>
 var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
@@ -373,6 +390,169 @@ var sheetsCache = {};
 function showLoading(on) {
   var el = document.getElementById('loadingBanner');
   if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+// ── 캠페인별 집계 ────────────────────────────────────────────────────────────
+
+// 공통 캠페인 집계 헬퍼
+function addToCampaign(obj, camp, dateStr, dateFrom, dateTo, cost, impr, click, conv, rev) {
+  if (dateStr < dateFrom || dateStr > dateTo) return;
+  if (!obj[camp]) obj[camp] = {name:camp, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+  obj[camp].cost        += cost;
+  obj[camp].impressions += impr;
+  obj[camp].clicks      += click;
+  obj[camp].conversions += conv;
+  obj[camp].revenue     += rev;
+}
+
+// 네이버SA → 캠페인별 {nsa:{campName:data}, nbsa:{campName:data}}
+function aggregateNSACampaign(rows, dateFrom, dateTo) {
+  var nsa = {}, nbsa = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
+    var target = isBSA ? nbsa : nsa;
+    var camp = r['캠페인명'] || '(미분류)';
+    addToCampaign(target, camp, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)']) || 0, Number(r['노출수']) || 0,
+      Number(r['클릭수']) || 0, Number(r['구매완료 전환수']) || 0,
+      Number(r['구매완료 매출액']) || 0);
+  }
+  return {nsa: nsa, nbsa: nbsa};
+}
+
+// 공통 CSV → 캠페인별
+function aggregateGenericCampaign(rows, dateFrom, dateTo) {
+  var out = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var camp = r['캠페인명'] || '(미분류)';
+    addToCampaign(out, camp, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)']) || 0, Number(r['노출수']) || 0,
+      Number(r['클릭수']) || 0, Number(r['구매완료 전환수']) || 0,
+      Number(r['구매완료 매출액']) || 0);
+  }
+  return out;
+}
+
+// GFA → 캠페인별 {minoxell:{}, oliveyoung:{}}
+function aggregateGFACampaign(rows, dateFrom, dateTo) {
+  var minoxell = {}, oliveyoung = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var rawDate = r['일별'] || '';
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+    var camp = r['캠페인명'] || '(미분류)';
+    addToCampaign(target, camp, dateStr, dateFrom, dateTo,
+      Number((r['총비용(vat-)'] || '').replace(/,/g,'')) || 0,
+      Number((r['노출수'] || '').replace(/,/g,'')) || 0,
+      Number((r['클릭수'] || '').replace(/,/g,'')) || 0,
+      Number((r['구매완료 전환수'] || '').replace(/,/g,'')) || 0,
+      Number((r['구매완료 매출액'] || '').replace(/,/g,'')) || 0);
+  }
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
+}
+
+// 하이퍼 NSA → 캠페인별
+function aggregateHyperNSACampaign(rows, dateFrom, dateTo) {
+  var out = {};
+  var BRAND_MAP = {'키친에이드':'kitchenaid','에코백스':'ecovacs','아노바':'anova'};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var brKey = BRAND_MAP[(r['브랜드'] || '').trim()];
+    if (!brKey) continue;
+    var campName = r['캠페인명'] || '';
+    if (brKey === 'kitchenaid' && campName.indexOf('코드리스') !== -1) brKey = 'kitchenaid_codeless';
+    var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
+    var chKey = isBSA ? 'nbsa' : 'nsa';
+    var storageKey = brKey + '__' + chKey;
+    if (!out[storageKey]) out[storageKey] = {};
+    addToCampaign(out[storageKey], campName, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)']) || 0, Number(r['노출수']) || 0,
+      Number(r['클릭수']) || 0, Number(r['구매완료 전환수']) || 0,
+      Number(r['구매완료 매출액']) || 0);
+  }
+  return out;
+}
+
+// 하이퍼 NGFA → 캠페인별
+function aggregateHyperNGFACampaign(rows, dateFrom, dateTo) {
+  var out = {};
+  var BRAND_KEYWORDS = [{keyword:'키친에이드',key:'kitchenaid'},{keyword:'에코백스',key:'ecovacs'},{keyword:'아노바',key:'anova'}];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var rawDate = r['일별'] || '';
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    var camp = (r['캠페인명'] || '').toLowerCase();
+    var brKey = null;
+    for (var k = 0; k < BRAND_KEYWORDS.length; k++) {
+      if (camp.indexOf(BRAND_KEYWORDS[k].keyword) !== -1) { brKey = BRAND_KEYWORDS[k].key; break; }
+    }
+    if (!brKey) continue;
+    var storageKey = brKey + '__ngfa';
+    if (!out[storageKey]) out[storageKey] = {};
+    var campName = r['캠페인명'] || '(미분류)';
+    addToCampaign(out[storageKey], campName, dateStr, dateFrom, dateTo,
+      Number((r['총비용(vat-)'] || '').replace(/,/g,'')) || 0,
+      Number((r['노출수'] || '').replace(/,/g,'')) || 0,
+      Number((r['클릭수'] || '').replace(/,/g,'')) || 0,
+      Number((r['구매완료 전환수'] || '').replace(/,/g,'')) || 0,
+      Number((r['구매완료 매출액'] || '').replace(/,/g,'')) || 0);
+  }
+  return out;
+}
+
+// 캠페인 데이터 캐시
+var campaignCache = {};
+
+// 브랜드+채널 → 캠페인별 데이터 반환
+function getCampaignData(brKey, chKey, dateFrom, dateTo) {
+  var cacheKey = brKey + '__' + chKey + '__' + dateFrom + '__' + dateTo;
+  if (campaignCache[cacheKey]) return campaignCache[cacheKey];
+
+  var result = {};
+
+  if (sheetsCache.skechers) {
+    var p = sheetsCache.skechers;
+    var nsaCamp  = aggregateNSACampaign(p._rawNSA || [], dateFrom, dateTo);
+    var googCamp = p._rawGoogle ? aggregateGenericCampaign(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') !== '앱'; }), dateFrom, dateTo) : {};
+    var googAppCamp = p._rawGoogle ? aggregateGenericCampaign(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') === '앱'; }), dateFrom, dateTo) : {};
+    if (brKey === 'skechers_official' && chKey === 'nsa')    result = nsaCamp.nsa;
+    if (brKey === 'skechers_official' && chKey === 'nbsa')   result = nsaCamp.nbsa;
+    if (brKey === 'skechers_official' && chKey === 'google') result = googCamp;
+    if (brKey === 'skechers_app'      && chKey === 'google') result = googAppCamp;
+  }
+  if (sheetsCache.minoxell) {
+    var pm = sheetsCache.minoxell;
+    var nsaCampM  = aggregateNSACampaign(pm._rawNSA || [], dateFrom, dateTo);
+    var metaCampM = aggregateGenericCampaign(pm._rawMeta || [], dateFrom, dateTo);
+    var gfaCampM  = aggregateGFACampaign(pm._rawNGFA || [], dateFrom, dateTo);
+    if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaCampM.nsa;
+    if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaCampM.nbsa;
+    if (brKey === 'minoxell'   && chKey === 'meta') result = metaCampM;
+    if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaCampM.minoxell;
+    if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaCampM.oliveyoung;
+  }
+  if (sheetsCache.hyper) {
+    var ph = sheetsCache.hyper;
+    var nsaCampH  = aggregateHyperNSACampaign(ph._rawNSA || [], dateFrom, dateTo);
+    var ngfaCampH = aggregateHyperNGFACampaign(ph._rawNGFA || [], dateFrom, dateTo);
+    var hKey = brKey + '__' + chKey;
+    result = nsaCampH[hKey] || ngfaCampH[hKey] || {};
+  }
+
+  campaignCache[cacheKey] = result;
+  return result;
 }
 
 // CSV 문자열 파싱 (따옴표 안 쉼표 처리)
@@ -575,10 +755,11 @@ function loadHyper(callback) {
     fetch(CSV_URLS_HYPER.ngfa).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
-    var nsaData  = aggregateHyperNSA(parseCSV(results[0]));
-    var ngfaData = aggregateHyperNGFA(parseCSV(results[1]));
-    // 합치기
-    var parsed = {};
+    var nsaRows3  = parseCSV(results[0]);
+    var ngfaRows3 = parseCSV(results[1]);
+    var nsaData   = aggregateHyperNSA(nsaRows3);
+    var ngfaData  = aggregateHyperNGFA(ngfaRows3);
+    var parsed = {_rawNSA: nsaRows3, _rawNGFA: ngfaRows3};
     var keys = Object.keys(nsaData).concat(Object.keys(ngfaData));
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i];
@@ -609,13 +790,16 @@ function loadSkechers(callback) {
 
   Promise.all([nsaPromise, googlePromise])
     .then(function(results) {
-      var nsaResult  = aggregateNSA(parseCSV(results[0]));
+      var nsaRows    = parseCSV(results[0]);
+      var nsaResult  = aggregateNSA(nsaRows);
       var googleRows = parseCSV(results[1]);
       var parsed = {
         nsa:            nsaResult.nsa,
         nbsa:           nsaResult.nbsa,
         googleOfficial: aggregateGoogleDA(googleRows, 'official'),
-        googleApp:      aggregateGoogleDA(googleRows, 'app')
+        googleApp:      aggregateGoogleDA(googleRows, 'app'),
+        _rawNSA:        nsaRows,
+        _rawGoogle:     googleRows
       };
       sheetsCache.skechers = parsed;
       showLoading(false);
@@ -686,14 +870,20 @@ function loadMinoxell(callback) {
     fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
-    var nsaResult2 = aggregateNSA(parseCSV(results[0]));
-    var gfaResult  = aggregateGFA(parseCSV(results[2]));
+    var nsaRows2   = parseCSV(results[0]);
+    var metaRows2  = parseCSV(results[1]);
+    var ngfaRows2  = parseCSV(results[2]);
+    var nsaResult2 = aggregateNSA(nsaRows2);
+    var gfaResult  = aggregateGFA(ngfaRows2);
     var parsed = {
       nsa:             nsaResult2.nsa,
       nbsa:            nsaResult2.nbsa,
-      meta:            aggregateGeneric(parseCSV(results[1])),
+      meta:            aggregateGeneric(metaRows2),
       ngfa:            gfaResult.minoxell,
-      oliveyoung_ngfa: gfaResult.oliveyoung
+      oliveyoung_ngfa: gfaResult.oliveyoung,
+      _rawNSA:         nsaRows2,
+      _rawMeta:        metaRows2,
+      _rawNGFA:        ngfaRows2
     };
     sheetsCache.minoxell = parsed;
     showLoading(false);
@@ -1270,13 +1460,13 @@ function renderChart(cm, ck) {
     if (lRange) {
       var lVal = ratio * lMax;
       var lType = leftSeries.length ? leftSeries[0].meta.type : 'num';
-      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(0,0,0,0.4);font-size:7px">' + fmtAxis(lVal, lType) + '</text>';
+      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(0,0,0,0.65);font-size:7px">' + fmtAxis(lVal, lType) + '</text>';
     }
     // 오른쪽 Y축
     if (rRange) {
       var rVal = ratio * rMax;
       var rType = rightSeries.length ? rightSeries[0].meta.type : 'pct';
-      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(0,0,0,0.4);font-size:7px">' + fmtAxis(rVal, rType) + '</text>';
+      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(0,0,0,0.65);font-size:7px">' + fmtAxis(rVal, rType) + '</text>';
     }
   }
   svg += '</g>';
@@ -1577,6 +1767,101 @@ function renderTable(cm, ck) {
   document.getElementById('tbody').innerHTML = html;
 }
 
+// 캠페인별 테이블 채널 셀렉터 업데이트
+function updateCampChSelect() {
+  var bk = brandKeys(), ck = chKeys();
+  var sel = document.getElementById('campChSelect');
+  if (!sel) return;
+  var options = '';
+  for (var ci = 0; ci < ck.length; ci++) {
+    var ch = ck[ci];
+    // 해당 브랜드+채널에 데이터가 있는지 확인
+    var hasData = false;
+    for (var bi = 0; bi < bk.length; bi++) {
+      if (RAW[bk[bi]] && RAW[bk[bi]][ch] && (RAW[bk[bi]][ch].impressions > 0 || RAW[bk[bi]][ch].conversions > 0)) {
+        hasData = true; break;
+      }
+    }
+    if (hasData) options += '<option value="' + ch + '">' + CH_NAME[ch] + '</option>';
+  }
+  sel.innerHTML = options;
+}
+
+function renderCampaignTable() {
+  var sel = document.getElementById('campChSelect');
+  if (!sel) return;
+  var chKey    = sel.value;
+  var bk       = brandKeys();
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+
+  // 매체별 데이터와 동일한 컬럼 사용
+  var CAMP_COLS = TABLE_COLS.filter(function(c){ return selectedCols.indexOf(c.key) !== -1; })
+    .sort(function(a, b){ return selectedCols.indexOf(a.key) - selectedCols.indexOf(b.key); });
+
+  // 헤더
+  var headHtml = '<th style="padding:9px 14px;text-align:left;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">캠페인명</th>';
+  for (var j = 0; j < CAMP_COLS.length; j++) {
+    headHtml += '<th style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">' + CAMP_COLS[j].label + '</th>';
+  }
+  document.getElementById('campTableHead').innerHTML = headHtml;
+
+  // 캠페인 데이터 합산 (브랜드 여러 개면 합산)
+  var merged = {};
+  for (var bi = 0; bi < bk.length; bi++) {
+    var campData = getCampaignData(bk[bi], chKey, dateFrom, dateTo);
+    var camps = Object.keys(campData);
+    for (var ci = 0; ci < camps.length; ci++) {
+      var name = camps[ci];
+      var d    = campData[name];
+      if (!merged[name]) merged[name] = {name:name, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+      merged[name].cost        += d.cost;
+      merged[name].impressions += d.impressions;
+      merged[name].clicks      += d.clicks;
+      merged[name].conversions += d.conversions;
+      merged[name].revenue     += d.revenue;
+    }
+  }
+
+  // 비용 내림차순 정렬
+  var campRows = Object.values(merged).sort(function(a, b){ return b.cost - a.cost; });
+
+  if (campRows.length === 0) {
+    document.getElementById('campTbody').innerHTML = '<tr><td colspan="' + (CAMP_COLS.length+1) + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
+    return;
+  }
+
+  var html = '';
+  var total = {cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+  for (var i = 0; i < campRows.length; i++) {
+    var r = campRows[i];
+    if (r.impressions === 0 && r.conversions === 0) continue;
+    var d2 = calc(r);
+    total.cost        += r.cost;
+    total.impressions += r.impressions;
+    total.clicks      += r.clicks;
+    total.conversions += r.conversions;
+    total.revenue     += r.revenue;
+    html += '<tr style="border-bottom:1px solid var(--border)">';
+    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</td>';
+    for (var j = 0; j < CAMP_COLS.length; j++) {
+      html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">' + fmt(d2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
+    }
+    html += '</tr>';
+  }
+  // 합계 행
+  if (campRows.length > 1) {
+    var tc2 = calc(total);
+    html += '<tr style="border-top:2px solid var(--border2);background:var(--bg3)">';
+    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:600">합계</td>';
+    for (var j = 0; j < CAMP_COLS.length; j++) {
+      html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">' + fmt(tc2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
+    }
+    html += '</tr>';
+  }
+  document.getElementById('campTbody').innerHTML = html;
+}
+
 function sortTable(key) {
   if (tableSort.key === key) {
     tableSort.asc = !tableSort.asc;
@@ -1599,6 +1884,9 @@ function render() {
   renderChart(cm, ck);
   renderRoasCvr(cm, ck);
   renderTable(cm, ck);
+  campaignCache = {};
+  updateCampChSelect();
+  renderCampaignTable();
 }
 
 function setBrand(btn) {
