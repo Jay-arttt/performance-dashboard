@@ -2128,8 +2128,8 @@ function renderCampaignTable() {
   }
 
   function tdNum(val, type)         { return '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">' + fmt(val, type) + '</td>'; }
-  function tdNumSub(val, type)      { return '<td style="padding:6px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)">' + fmt(val, type) + '</td>'; }
-  function tdNumCreative(val, type) { return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.8">' + fmt(val, type) + '</td>'; }
+  function tdNumSub(val, type)      { return '<td style="padding:6px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#3a4150">' + fmt(val, type) + '</td>'; }
+  function tdNumCreative(val, type) { return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmt(val, type) + '</td>'; }
 
   var html = '';
   var total = {cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0};
@@ -2152,19 +2152,18 @@ function renderCampaignTable() {
     for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text);border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(ext2[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
     html += '</tr>';
 
-    // 이전 동기간 캠페인 서브 행
-    if (campPrevMode) {
-      var pRow = prevHierMerged[expKey];
-      if (pRow) {
-        var pd2 = calc(pRow); var pext = calcExtended(pRow);
-        html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.015)">';
-        html += '<td style="padding:3px 14px 6px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:var(--muted);opacity:.7;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ 이전 동기간</td>';
-        if (multiCh) html += '<td></td>';
-        for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.7">' + fmt(pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
-        for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.7;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
-        html += '</tr>';
+      if (campPrevMode) {
+        var pRow = prevHierMerged[expKey];
+        if (pRow) {
+          var pd2 = calc(pRow); var pext = calcExtended(pRow);
+          html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.09)">';
+          html += '<td style="padding:3px 14px 6px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ 이전 동기간</td>';
+          if (multiCh) html += '<td></td>';
+          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748">' + fmt(pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(d2[CAMP_COLS[j].key], pd2[CAMP_COLS[j].key]) + '</td>';
+          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(ext2[EXTRA_COLS[j].key], pext[EXTRA_COLS[j].key]) + '</td>';
+          html += '</tr>';
+        }
       }
-    }
 
     if (!isExp || !hasGroups) continue;
 
@@ -2176,13 +2175,13 @@ function renderCampaignTable() {
       var hasCreatives = Object.keys(grp.creatives || {}).filter(function(k){ return k; }).length > 0;
 
       html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);' + (hasCreatives ? 'cursor:pointer' : '') + '" ' + (hasCreatives ? 'onclick="event.stopPropagation();toggleGroupExpand(\'' + gExpKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : 'onclick="event.stopPropagation()"') + '>';
-      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:var(--muted);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
       html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasCreatives ? (gIsExp ? '▼' : '▶') : '') + '</span>';
       html += grp.name + '</td>';
       if (multiCh) html += '<td></td>';
       for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumSub(gd[CAMP_COLS[j].key], CAMP_COLS[j].type);
       var gext = calcExtended(grp);
-      for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:6px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(gext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
+      for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:6px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(gext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
       html += '</tr>';
 
       // 이전 동기간 그룹 서브 행
@@ -2190,11 +2189,11 @@ function renderCampaignTable() {
         var pGrpRow = prevHierMerged[expKey] && prevHierMerged[expKey].groups && prevHierMerged[expKey].groups[grp.name];
         if (pGrpRow) {
           var pgd = calc(pGrpRow); var pgext = calcExtended(pGrpRow);
-          html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.025)">';
-          html += '<td style="padding:2px 14px 5px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:var(--muted);opacity:.65;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
+          html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.07)">';
+          html += '<td style="padding:2px 14px 5px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
           if (multiCh) html += '<td></td>';
-          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.65">' + fmt(pgd[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
-          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.65;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pgext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
+          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pgd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(gd[CAMP_COLS[j].key], pgd[CAMP_COLS[j].key]) + '</td>';
+          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pgext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(gext[EXTRA_COLS[j].key], pgext[EXTRA_COLS[j].key]) + '</td>';
           html += '</tr>';
         }
       }
@@ -2205,11 +2204,11 @@ function renderCampaignTable() {
       for (var cri = 0; cri < creatives.length; cri++) {
         var cr = creatives[cri]; var crd = calc(cr);
         html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()">';
-        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:var(--muted);opacity:.8;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">◦ ' + cr.name + '</td>';
+        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">◦ ' + cr.name + '</td>';
         if (multiCh) html += '<td></td>';
         for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumCreative(crd[CAMP_COLS[j].key], CAMP_COLS[j].type);
         var crext = calcExtended(cr);
-        for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.8;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(crext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
+        for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(crext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
         html += '</tr>';
 
         // 이전 동기간 소재 서브 행
@@ -2217,11 +2216,11 @@ function renderCampaignTable() {
           var pCrRow = prevHierMerged[expKey] && prevHierMerged[expKey].groups && prevHierMerged[expKey].groups[grp.name] && prevHierMerged[expKey].groups[grp.name].creatives && prevHierMerged[expKey].groups[grp.name].creatives[cr.name];
           if (pCrRow) {
             var pcrd = calc(pCrRow); var pcrext = calcExtended(pCrRow);
-            html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.04)">';
-            html += '<td style="padding:2px 14px 4px 66px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:var(--muted);opacity:.6;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
+            html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.05)">';
+            html += '<td style="padding:2px 14px 4px 66px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
             if (multiCh) html += '<td></td>';
-            for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.6">' + fmt(pcrd[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
-            for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.6;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pcrext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
+            for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pcrd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(crd[CAMP_COLS[j].key], pcrd[CAMP_COLS[j].key]) + '</td>';
+            for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pcrext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(crext[EXTRA_COLS[j].key], pcrext[EXTRA_COLS[j].key]) + '</td>';
             html += '</tr>';
           }
         }
@@ -2271,6 +2270,16 @@ function sortCampTable(key) {
 function sortArrow(key, sortState) {
   if (sortState.key !== key) return ' <span style="opacity:.3">↕</span>';
   return sortState.asc ? ' <span>↑</span>' : ' <span>↓</span>';
+}
+
+// 증감 화살표 + % 헬퍼
+function changeArrow(curr, prev) {
+  if (!prev || prev === 0) return '';
+  var pct = (curr - prev) / prev * 100;
+  var isUp = pct >= 0;
+  var color = isUp ? '#16a34a' : '#dc2626';
+  var arrow = isUp ? '▲' : '▼';
+  return ' <span style="font-size:9px;color:' + color + ';font-weight:600">' + arrow + Math.abs(pct).toFixed(1) + '%</span>';
 }
 
 function filterChTabs() {
