@@ -358,12 +358,13 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
       </div>
     </div>
   </div>
-  <div style="overflow-x:auto;overflow-y:visible" id="campTableWrap">
+  <div style="overflow-x:auto;overflow-y:visible;scrollbar-width:none;-ms-overflow-style:none" id="campTableWrap">
     <table id="campTable" style="width:100%;border-collapse:collapse">
       <thead><tr id="campTableHead"></tr></thead>
       <tbody id="campTbody"></tbody>
     </table>
   </div>
+  <style>#campTableWrap::-webkit-scrollbar{display:none}</style>
   <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;position:sticky;bottom:0;z-index:3;background:var(--bg2);border-top:1px solid var(--border)">
     <div id="campScrollbarInner" style="height:10px"></div>
   </div>
