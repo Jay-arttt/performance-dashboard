@@ -358,14 +358,14 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
       </div>
     </div>
   </div>
-  <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;position:sticky;bottom:0;z-index:3;background:var(--bg2)">
-    <div id="campScrollbarInner" style="height:12px"></div>
-  </div>
   <div style="overflow-x:auto;overflow-y:visible" id="campTableWrap">
     <table id="campTable" style="width:100%;border-collapse:collapse">
       <thead><tr id="campTableHead"></tr></thead>
       <tbody id="campTbody"></tbody>
     </table>
+  </div>
+  <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;position:sticky;bottom:0;z-index:3;background:var(--bg2);border-top:1px solid var(--border)">
+    <div id="campScrollbarInner" style="height:10px"></div>
   </div>
 </div>
 
@@ -2185,7 +2185,7 @@ function renderCampaignTable() {
     total.cost += r.cost; total.impressions += r.impressions; total.clicks += r.clicks; total.conversions += r.conversions; total.revenue += r.revenue; total.cart_conv += (r.cart_conv||0); total.cart_rev += (r.cart_rev||0);
 
     html += '<tr style="border-bottom:1px solid var(--border);' + (hasGroups ? 'cursor:pointer' : '') + '" ' + (hasGroups ? 'onclick="toggleCampExpand(\'' + expKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : '') + '>';
-    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:var(--bg2);z-index:1">';
+    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);white-space:nowrap;position:sticky;left:0;background:var(--bg2);z-index:1">';
     html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasGroups ? (isExp ? '▼' : '▶') : '') + '</span>';
     html += r.name + '</td>';
     if (multiCh) html += '<td style="padding:10px 14px;font-size:11px;min-width:100px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
@@ -2199,7 +2199,7 @@ function renderCampaignTable() {
         if (pRow) {
           var pd2 = calc(pRow); var pext = calcExtended(pRow);
           html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.09)">';
-          html += '<td style="padding:3px 14px 6px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ 이전 동기간</td>';
+          html += '<td style="padding:3px 14px 6px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;white-space:nowrap">↳ 이전 동기간</td>';
           if (multiCh) html += '<td></td>';
           for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748">' + fmt(pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(d2[CAMP_COLS[j].key], pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
           for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(ext2[EXTRA_COLS[j].key], pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
@@ -2217,7 +2217,7 @@ function renderCampaignTable() {
       var hasCreatives = Object.keys(grp.creatives || {}).filter(function(k){ return k; }).length > 0;
 
       html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);' + (hasCreatives ? 'cursor:pointer' : '') + '" ' + (hasCreatives ? 'onclick="event.stopPropagation();toggleGroupExpand(\'' + gExpKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : 'onclick="event.stopPropagation()"') + '>';
-      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:rgba(245,246,248,1);z-index:1">';
+      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;white-space:nowrap;position:sticky;left:0;background:rgba(245,246,248,1);z-index:1">';
       html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasCreatives ? (gIsExp ? '▼' : '▶') : '') + '</span>';
       html += grp.name + '</td>';
       if (multiCh) html += '<td></td>';
@@ -2246,7 +2246,7 @@ function renderCampaignTable() {
       for (var cri = 0; cri < creatives.length; cri++) {
         var cr = creatives[cri]; var crd = calc(cr);
         html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()">';
-        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ ' + cr.name + '</td>';
+        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;white-space:nowrap;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ ' + cr.name + '</td>';
         if (multiCh) html += '<td></td>';
         for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumCreative(crd[CAMP_COLS[j].key], CAMP_COLS[j].type);
         var crext = calcExtended(cr);
@@ -2301,29 +2301,27 @@ function sortTable(key) {
 }
 
 function syncCampScrollbar() {
-  var wrap = document.getElementById('campTableWrap');
-  var bar  = document.getElementById('campScrollbar');
-  var inner = document.getElementById('campScrollbarInner');
-  if (!wrap || !bar || !inner) return;
+  requestAnimationFrame(function() {
+    var wrap  = document.getElementById('campTableWrap');
+    var bar   = document.getElementById('campScrollbar');
+    var inner = document.getElementById('campScrollbarInner');
+    var tbl   = document.getElementById('campTable');
+    if (!wrap || !bar || !inner || !tbl) return;
 
-  // 내부 너비를 테이블 너비에 맞춤
-  var tbl = document.getElementById('campTable');
-  inner.style.width = (tbl ? tbl.offsetWidth : wrap.scrollWidth) + 'px';
+    inner.style.width = tbl.scrollWidth + 'px';
 
-  // 스크롤 동기화 (이벤트 중복 방지)
-  var syncing = false;
-  wrap.onscroll = function() {
-    if (syncing) return;
-    syncing = true;
-    bar.scrollLeft = wrap.scrollLeft;
-    syncing = false;
-  };
-  bar.onscroll = function() {
-    if (syncing) return;
-    syncing = true;
-    wrap.scrollLeft = bar.scrollLeft;
-    syncing = false;
-  };
+    var syncing = false;
+    wrap.onscroll = function() {
+      if (syncing) return; syncing = true;
+      bar.scrollLeft = wrap.scrollLeft;
+      syncing = false;
+    };
+    bar.onscroll = function() {
+      if (syncing) return; syncing = true;
+      wrap.scrollLeft = bar.scrollLeft;
+      syncing = false;
+    };
+  });
 }
 
 function sortCampTable(key) {
