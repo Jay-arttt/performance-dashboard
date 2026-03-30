@@ -1169,7 +1169,7 @@ var SKECHERS_SUBS  = ['skechers_official', 'skechers_app'];
 var MYNOXCEL_SUBS  = ['minoxell', 'oliveyoung'];
 var ALL_BRANDS = ['skechers_official', 'skechers_app', 'minoxell', 'oliveyoung', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
 var CHS = ['meta', 'google', 'kakao', 'ngfa', 'nsa', 'nbsa'];
-var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버<br>GFA', nsa: '네이버<br>SA', nbsa: '네이버<br>BSA'};
+var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버 GFA', nsa: '네이버 SA', nbsa: '네이버 BSA'};
 var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', kakao: 'var(--kakao)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)', nbsa: 'var(--nbsa)'};
 var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', kakao: '#f9d000', ngfa: '#03c75a', nsa: '#00b4d8', nbsa: '#a78bfa'};
 var CH_SHORT = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: 'N.GFA', nsa: 'N.SA', nbsa: 'N.BSA'};
@@ -2080,9 +2080,9 @@ function renderCampaignTable() {
 
   // 헤더
   var thBase = 'padding:9px 14px;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;cursor:pointer;user-select:none';
-  var headHtml = '<th style="' + thBase + ';text-align:left" onclick="sortCampTable(\'name\')">캠페인명' + sortArrow('name', campTableSort) + '</th>';
+  var headHtml = '<th style="' + thBase + ';text-align:left;position:sticky;left:0;z-index:3;background:var(--bg3)" onclick="sortCampTable(\'name\')">캠페인명' + sortArrow('name', campTableSort) + '</th>';
   if (activeChs.length > 1) {
-    headHtml += '<th style="' + thBase + ';text-align:left">매체</th>';
+    headHtml += '<th style="' + thBase + ';text-align:left;min-width:100px">매체</th>';
   }
   for (var j = 0; j < CAMP_COLS.length; j++) {
     headHtml += '<th style="' + thBase + ';text-align:right" onclick="sortCampTable(\'' + CAMP_COLS[j].key + '\')">' + CAMP_COLS[j].label + sortArrow(CAMP_COLS[j].key, campTableSort) + '</th>';
@@ -2185,10 +2185,10 @@ function renderCampaignTable() {
     total.cost += r.cost; total.impressions += r.impressions; total.clicks += r.clicks; total.conversions += r.conversions; total.revenue += r.revenue; total.cart_conv += (r.cart_conv||0); total.cart_rev += (r.cart_rev||0);
 
     html += '<tr style="border-bottom:1px solid var(--border);' + (hasGroups ? 'cursor:pointer' : '') + '" ' + (hasGroups ? 'onclick="toggleCampExpand(\'' + expKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : '') + '>';
-    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:var(--bg2);z-index:1">';
     html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasGroups ? (isExp ? '▼' : '▶') : '') + '</span>';
     html += r.name + '</td>';
-    if (multiCh) html += '<td style="padding:10px 14px;font-size:11px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
+    if (multiCh) html += '<td style="padding:10px 14px;font-size:11px;min-width:100px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
     for (var j = 0; j < CAMP_COLS.length; j++) html += tdNum(d2[CAMP_COLS[j].key], CAMP_COLS[j].type);
     var ext2 = calcExtended(r);
     for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text);border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(ext2[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
@@ -2217,7 +2217,7 @@ function renderCampaignTable() {
       var hasCreatives = Object.keys(grp.creatives || {}).filter(function(k){ return k; }).length > 0;
 
       html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);' + (hasCreatives ? 'cursor:pointer' : '') + '" ' + (hasCreatives ? 'onclick="event.stopPropagation();toggleGroupExpand(\'' + gExpKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : 'onclick="event.stopPropagation()"') + '>';
-      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:rgba(245,246,248,1);z-index:1">';
       html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasCreatives ? (gIsExp ? '▼' : '▶') : '') + '</span>';
       html += grp.name + '</td>';
       if (multiCh) html += '<td></td>';
@@ -2246,7 +2246,7 @@ function renderCampaignTable() {
       for (var cri = 0; cri < creatives.length; cri++) {
         var cr = creatives[cri]; var crd = calc(cr);
         html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()">';
-        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">◦ ' + cr.name + '</td>';
+        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ ' + cr.name + '</td>';
         if (multiCh) html += '<td></td>';
         for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumCreative(crd[CAMP_COLS[j].key], CAMP_COLS[j].type);
         var crext = calcExtended(cr);
