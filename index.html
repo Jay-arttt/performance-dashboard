@@ -47,6 +47,15 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 
 /* Filters */
 .filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.sticky-filters {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 12px 0 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
 .filter-label { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; min-width: 36px; }
 .tab-group { display: flex; gap: 4px; flex-wrap: wrap; }
 .tab { display: flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; white-space: nowrap; }
@@ -228,8 +237,8 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
+<div class="sticky-filters">
 <div class="filter-row">
-  <span class="filter-label">브랜드</span>
   <div class="tab-group" id="brandTabs">
     <button class="tab active" data-brand="all" onclick="setBrand(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
     <button class="tab" data-brand="skechers" onclick="setBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
@@ -274,6 +283,8 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
     <button class="tab" data-ch="nbsa" onclick="setCh(this)"><span class="dot" style="background:var(--nbsa)"></span>네이버 BSA</button>
   </div>
 </div>
+
+</div><!-- /sticky-filters -->
 
 <div class="budget-section" id="budgetSection">
   <div class="budget-header" onclick="toggleBudgetSection()" style="cursor:pointer">
