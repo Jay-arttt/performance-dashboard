@@ -8,23 +8,23 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0e0f11;
-  --bg2: #16181c;
-  --bg3: #1e2026;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.14);
-  --text: #e8e6e0;
-  --muted: #6b6a65;
-  --meta: #4f8ef7;
-  --google: #f4a044;
-  --ngfa: #03c75a;
-  --nsa: #00b4d8;
-  --nbsa: #a78bfa;
-  --kakao: #f9d000;
-  --google_app: #fb923c;
-  --hyper: #a78bfa;
-  --up: #6ddf9a;
-  --down: #f06060;
+  --bg: #f8f9fb;
+  --bg2: #ffffff;
+  --bg3: #f0f2f5;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #1a1d23;
+  --muted: #8a92a0;
+  --meta: #3b7de9;
+  --google: #e07b20;
+  --ngfa: #00994a;
+  --nsa: #0097b8;
+  --nbsa: #7c5fc9;
+  --kakao: #c4a800;
+  --google_app: #d9720f;
+  --hyper: #7c5fc9;
+  --up: #1a9e52;
+  --down: #d93636;
 }
 body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px; }
 .page-wrap { max-width: 1200px; margin: 0 auto; }
@@ -1263,19 +1263,19 @@ function renderChart(cm, ck) {
   var TICKS = 4;
   for (var g = 0; g <= TICKS; g++) {
     var gy = PT + (g / TICKS) * cH;
-    svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+    svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>';
     var ratio = 1 - g / TICKS;
     // 왼쪽 Y축
     if (lRange) {
       var lVal = ratio * lMax;
       var lType = leftSeries.length ? leftSeries[0].meta.type : 'num';
-      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(255,255,255,0.35);font-size:7px">' + fmtAxis(lVal, lType) + '</text>';
+      svg += '<text x="' + (PL - 6) + '" y="' + (gy + 4) + '" text-anchor="end" class="lc-axis-text" style="fill:rgba(0,0,0,0.4);font-size:7px">' + fmtAxis(lVal, lType) + '</text>';
     }
     // 오른쪽 Y축
     if (rRange) {
       var rVal = ratio * rMax;
       var rType = rightSeries.length ? rightSeries[0].meta.type : 'pct';
-      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(255,255,255,0.35);font-size:7px">' + fmtAxis(rVal, rType) + '</text>';
+      svg += '<text x="' + (W - PR + 6) + '" y="' + (gy + 4) + '" text-anchor="start" class="lc-axis-text" style="fill:rgba(0,0,0,0.4);font-size:7px">' + fmtAxis(rVal, rType) + '</text>';
     }
   }
   svg += '</g>';
@@ -1319,7 +1319,7 @@ function renderChart(cm, ck) {
     for (var i = 0; i < N; i++) {
       var tipTxt = (mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')').replace(/'/g, '&#39;');
       if (showDots) {
-        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3" fill="' + col + '" stroke="#16181c" stroke-width="1.5" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3" fill="' + col + '" stroke="#ffffff" stroke-width="1.5" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
       } else {
         svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="6" fill="transparent" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
       }
