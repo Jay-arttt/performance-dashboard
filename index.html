@@ -320,16 +320,6 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
-<div class="roas-section">
-  <div class="roas-card" id="roasCard">
-    <div class="section-title" style="margin-bottom:14px">ROAS 비교</div>
-    <div id="roasRows"></div>
-  </div>
-  <div class="roas-card">
-    <div class="section-title" id="cvrTitle" style="margin-bottom:14px">CVR 비교</div>
-    <div id="cvrRows"></div>
-  </div>
-</div>
 
 <div class="table-section">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -350,7 +340,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
-<div class="card" style="margin-top:16px">
+<div class="table-section" style="margin-top:16px">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <span>캠페인별 데이터</span>
     <div style="display:flex;align-items:center;gap:8px">
@@ -1895,9 +1885,7 @@ function render() {
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
-  renderRoasCvr(cm, ck);
   renderTable(cm, ck);
-  campaignCache = {};
   updateCampChSelect();
   renderCampaignTable();
 }
@@ -1971,7 +1959,7 @@ function setThisMonth(btn) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -1987,7 +1975,7 @@ function setLastMonth(btn) {
   document.getElementById('dateTo').value   = lastOfLastMonth.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -2032,7 +2020,7 @@ function setLastWeek(btn) {
   document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -2047,7 +2035,7 @@ function setYesterday(btn) {
   document.getElementById('dateTo').value   = d;
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -2069,7 +2057,7 @@ function setTwoWeeksAgo(btn) {
   document.getElementById('dateTo').value   = twoSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -2085,7 +2073,7 @@ function setPreset(btn, days) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null;
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
   renderWithData();
 }
 
@@ -2094,7 +2082,7 @@ function applyRange() {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; // 날짜 바뀌면 캐시 초기화
+  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {}; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
 
