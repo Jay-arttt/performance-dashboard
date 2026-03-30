@@ -31,7 +31,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 .page-wrap { max-width: 1200px; margin: 0 auto; }
 
 /* Header */
-.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 16px; }
 .header h1 { font-family: 'Noto Sans KR', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
 .header p { font-family: 'Inter', sans-serif; font-size: 15px; color: var(--muted); margin-top: 4px; }
 .date-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -52,7 +52,8 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
   top: 0;
   z-index: 100;
   background: var(--bg);
-  padding: 12px 0 4px;
+  padding-top: 20px;
+  padding-bottom: 8px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
@@ -211,6 +212,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <div class="page-wrap">
+<div class="sticky-filters">
 <div class="header">
   <div>
     <h1>브랜드별 광고 성과 대시보드</h1>
@@ -237,8 +239,8 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
-<div class="sticky-filters">
 <div class="filter-row">
+  <span class="filter-label">브랜드</span>
   <div class="tab-group" id="brandTabs">
     <button class="tab active" data-brand="all" onclick="setBrand(this)"><span class="dot" style="background:var(--text);opacity:.25"></span>전체</button>
     <button class="tab" data-brand="skechers" onclick="setBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
