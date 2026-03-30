@@ -1537,11 +1537,23 @@ function renderTable(cm, ck) {
 
   // tbody
   var html = '';
+  var total = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+  var visibleRows = [];
+
   for (var i = 0; i < rows.length; i++) {
-    var c = rows[i].ch;
     var d = rows[i].data;
-    // 노출과 전환수가 모두 0이면 숨김
     if ((d.impressions || 0) === 0 && (d.conversions || 0) === 0) continue;
+    visibleRows.push(rows[i]);
+    total.cost        += d.cost        || 0;
+    total.revenue     += d.revenue     || 0;
+    total.clicks      += d.clicks      || 0;
+    total.impressions += d.impressions || 0;
+    total.conversions += d.conversions || 0;
+  }
+
+  for (var i = 0; i < visibleRows.length; i++) {
+    var c = visibleRows[i].ch;
+    var d = visibleRows[i].data;
     html += '<tr><td><span class="ch-pill ' + c + '">' + CH_NAME[c] + '</span></td>';
     for (var j = 0; j < activeCols.length; j++) {
       var col = activeCols[j];
@@ -1549,6 +1561,19 @@ function renderTable(cm, ck) {
     }
     html += '</tr>';
   }
+
+  // 합계 행
+  if (visibleRows.length > 1) {
+    var tc = calc(total);
+    html += '<tr style="border-top:2px solid var(--border2);background:var(--bg3)">';
+    html += '<td style="font-weight:600;font-family:\'Noto Sans KR\',sans-serif;font-size:12px">합계</td>';
+    for (var j = 0; j < activeCols.length; j++) {
+      var col = activeCols[j];
+      html += '<td style="font-weight:600">' + fmt(tc[col.key], col.type) + '</td>';
+    }
+    html += '</tr>';
+  }
+
   document.getElementById('tbody').innerHTML = html;
 }
 
