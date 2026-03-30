@@ -1357,15 +1357,16 @@ function renderKPIs(cm, pm) {
     var label = (override && override.labelOverrides && override.labelOverrides[k.key]) ? override.labelOverrides[k.key] : k.label;
     var v = ca[k.key];
     var p = pa[k.key];
-    var chg = (v - p) / p;
-    var isUp = chg >= 0;
+    var diff = v - p;
+    var isUp = diff >= 0;
     var isCostMetric = (k.key === 'cost' || k.key === 'cpc' || k.key === 'cpm' || k.key === 'cpa');
     var isGood = isCostMetric ? !isUp : isUp;
+    var diffLabel = (isUp ? '+' : '') + fmt(diff, k.type);
     html += '<div class="kpi-card">';
     html += '<div class="kpi-label">' + label + '</div>';
     html += '<div class="kpi-value">' + fmt(v, k.type) + '</div>';
     html += '<div class="kpi-sub">';
-    html += '<span class="badge ' + (isGood ? 'up' : 'down') + '">' + (isUp ? '+' : '') + (chg * 100).toFixed(1) + '%</span>';
+    html += '<span class="badge ' + (isGood ? 'up' : 'down') + '">' + diffLabel + '</span>';
     html += '<span style="color:var(--text);opacity:.55;letter-spacing:0.03em">' + fmt(p, k.type) + '</span>';
     html += '</div></div>';
   }
@@ -2159,8 +2160,8 @@ function renderCampaignTable() {
           html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.09)">';
           html += '<td style="padding:3px 14px 6px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ 이전 동기간</td>';
           if (multiCh) html += '<td></td>';
-          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748">' + fmt(pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(d2[CAMP_COLS[j].key], pd2[CAMP_COLS[j].key]) + '</td>';
-          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(ext2[EXTRA_COLS[j].key], pext[EXTRA_COLS[j].key]) + '</td>';
+          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748">' + fmt(pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(d2[CAMP_COLS[j].key], pd2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
+          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:3px 14px 6px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#2d3748;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(ext2[EXTRA_COLS[j].key], pext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
           html += '</tr>';
         }
       }
@@ -2192,8 +2193,8 @@ function renderCampaignTable() {
           html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.07)">';
           html += '<td style="padding:2px 14px 5px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
           if (multiCh) html += '<td></td>';
-          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pgd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(gd[CAMP_COLS[j].key], pgd[CAMP_COLS[j].key]) + '</td>';
-          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pgext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(gext[EXTRA_COLS[j].key], pgext[EXTRA_COLS[j].key]) + '</td>';
+          for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pgd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(gd[CAMP_COLS[j].key], pgd[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
+          for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 5px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pgext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(gext[EXTRA_COLS[j].key], pgext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
           html += '</tr>';
         }
       }
@@ -2219,8 +2220,8 @@ function renderCampaignTable() {
             html += '<tr style="border-bottom:1px solid var(--border);background:rgba(59,125,246,0.05)">';
             html += '<td style="padding:2px 14px 4px 66px;font-family:\'Noto Sans KR\',sans-serif;font-size:10px;color:#3b7de9;font-weight:500;max-width:280px;white-space:nowrap">↳ 이전 동기간</td>';
             if (multiCh) html += '<td></td>';
-            for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pcrd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(crd[CAMP_COLS[j].key], pcrd[CAMP_COLS[j].key]) + '</td>';
-            for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pcrext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(crext[EXTRA_COLS[j].key], pcrext[EXTRA_COLS[j].key]) + '</td>';
+            for (var j = 0; j < CAMP_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151">' + fmt(pcrd[CAMP_COLS[j].key], CAMP_COLS[j].type) + changeArrow(crd[CAMP_COLS[j].key], pcrd[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
+            for (var j = 0; j < EXTRA_COLS.length; j++) html += '<td style="padding:2px 14px 4px;text-align:right;font-family:\'Inter\',sans-serif;font-size:10px;font-variant-numeric:tabular-nums;color:#374151;border-left:' + (j===0?'1px solid var(--border2)':'none') + '">' + fmt(pcrext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + changeArrow(crext[EXTRA_COLS[j].key], pcrext[EXTRA_COLS[j].key], EXTRA_COLS[j].type) + '</td>';
             html += '</tr>';
           }
         }
@@ -2273,13 +2274,16 @@ function sortArrow(key, sortState) {
 }
 
 // 증감 화살표 + % 헬퍼
-function changeArrow(curr, prev) {
+function changeArrow(curr, prev, type) {
   if (!prev || prev === 0) return '';
-  var pct = (curr - prev) / prev * 100;
-  var isUp = pct >= 0;
+  var diff = curr - prev;
+  if (diff === 0) return '';
+  var isUp = diff > 0;
   var color = isUp ? '#16a34a' : '#dc2626';
   var arrow = isUp ? '▲' : '▼';
-  return ' <span style="font-size:9px;color:' + color + ';font-weight:600">' + arrow + Math.abs(pct).toFixed(1) + '%</span>';
+  var absDiff = Math.abs(diff);
+  var label = fmt(absDiff, type || 'num');
+  return ' <span style="font-size:9px;color:' + color + ';font-weight:600">' + arrow + label + '</span>';
 }
 
 function filterChTabs() {
