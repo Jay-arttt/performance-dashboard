@@ -355,7 +355,10 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
       </div>
     </div>
   </div>
-  <div style="overflow-x:auto">
+  <div id="campScrollbar" style="overflow-x:auto;overflow-y:hidden;position:sticky;bottom:0;z-index:3;background:var(--bg2)">
+    <div id="campScrollbarInner" style="height:12px"></div>
+  </div>
+  <div style="overflow-x:auto;overflow-y:visible" id="campTableWrap">
     <table id="campTable" style="width:100%;border-collapse:collapse">
       <thead><tr id="campTableHead"></tr></thead>
       <tbody id="campTbody"></tbody>
@@ -2246,6 +2249,7 @@ function renderCampaignTable() {
     html += '</tr>';
   }
   document.getElementById('campTbody').innerHTML = html;
+  syncCampScrollbar();
 }
 
 function sortTable(key) {
@@ -2258,6 +2262,32 @@ function sortTable(key) {
   var bk = brandKeys(), ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   renderTable(cm, ck);
+}
+
+function syncCampScrollbar() {
+  var wrap = document.getElementById('campTableWrap');
+  var bar  = document.getElementById('campScrollbar');
+  var inner = document.getElementById('campScrollbarInner');
+  if (!wrap || !bar || !inner) return;
+
+  // 내부 너비를 테이블 너비에 맞춤
+  var tbl = document.getElementById('campTable');
+  inner.style.width = (tbl ? tbl.offsetWidth : wrap.scrollWidth) + 'px';
+
+  // 스크롤 동기화 (이벤트 중복 방지)
+  var syncing = false;
+  wrap.onscroll = function() {
+    if (syncing) return;
+    syncing = true;
+    bar.scrollLeft = wrap.scrollLeft;
+    syncing = false;
+  };
+  bar.onscroll = function() {
+    if (syncing) return;
+    syncing = true;
+    wrap.scrollLeft = bar.scrollLeft;
+    syncing = false;
+  };
 }
 
 function sortCampTable(key) {
@@ -2285,7 +2315,7 @@ function changeArrow(curr, prev, type) {
   var arrow = isUp ? '▲' : '▼';
   var absDiff = Math.abs(diff);
   var label = fmt(absDiff, type || 'num');
-  return ' <span style="font-size:9px;color:' + color + ';font-weight:600">' + arrow + label + '</span>';
+  return '<br><span style="font-size:9px;color:' + color + ';font-weight:600">' + arrow + label + '</span>';
 }
 
 function filterChTabs() {
