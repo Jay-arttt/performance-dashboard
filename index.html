@@ -410,6 +410,152 @@ function addToCampaign(obj, camp, dateStr, dateFrom, dateTo, cost, impr, click, 
   obj[camp].revenue     += rev;
 }
 
+// 계층적 집계: {캠페인명: {data, groups: {그룹명: {data, creatives: {소재명: data}}}}}
+function addToHierarchy(hier, camp, group, creative, dateStr, dateFrom, dateTo, cost, impr, click, conv, rev) {
+  if (dateStr < dateFrom || dateStr > dateTo) return;
+  var empty = function(name) { return {name:name, cost:0, impressions:0, clicks:0, conversions:0, revenue:0}; };
+  if (!hier[camp]) hier[camp] = Object.assign(empty(camp), {groups:{}});
+  hier[camp].cost += cost; hier[camp].impressions += impr; hier[camp].clicks += click; hier[camp].conversions += conv; hier[camp].revenue += rev;
+  if (group) {
+    if (!hier[camp].groups[group]) hier[camp].groups[group] = Object.assign(empty(group), {creatives:{}});
+    hier[camp].groups[group].cost += cost; hier[camp].groups[group].impressions += impr; hier[camp].groups[group].clicks += click; hier[camp].groups[group].conversions += conv; hier[camp].groups[group].revenue += rev;
+    if (creative) {
+      if (!hier[camp].groups[group].creatives[creative]) hier[camp].groups[group].creatives[creative] = empty(creative);
+      hier[camp].groups[group].creatives[creative].cost += cost; hier[camp].groups[group].creatives[creative].impressions += impr; hier[camp].groups[group].creatives[creative].clicks += click; hier[camp].groups[group].creatives[creative].conversions += conv; hier[camp].groups[group].creatives[creative].revenue += rev;
+    }
+  }
+}
+
+// NSA 계층 집계
+function aggregateNSAHierarchy(rows, dateFrom, dateTo) {
+  var nsa = {}, nbsa = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
+    var target = isBSA ? nbsa : nsa;
+    addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
+  }
+  return {nsa: nsa, nbsa: nbsa};
+}
+
+// 공통 계층 집계 (Meta, Google)
+function aggregateGenericHierarchy(rows, dateFrom, dateTo, creativeCol) {
+  var out = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var creative = creativeCol ? (r[creativeCol] || '') : null;
+    addToHierarchy(out, r['캠페인명']||'(미분류)', r['광고그룹명']||'', creative, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
+  }
+  return out;
+}
+
+// GFA 계층 집계
+function aggregateGFAHierarchy(rows, dateFrom, dateTo) {
+  var minoxell = {}, oliveyoung = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var rawDate = r['일별'] || '';
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+    addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', r['광고소재']||'', dateStr, dateFrom, dateTo,
+      Number((r['총비용(vat-)']||'').replace(/,/g,''))||0,
+      Number((r['노출수']||'').replace(/,/g,''))||0,
+      Number((r['클릭수']||'').replace(/,/g,''))||0,
+      Number((r['구매완료 전환수']||'').replace(/,/g,''))||0,
+      Number((r['구매완료 매출액']||'').replace(/,/g,''))||0);
+  }
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
+}
+
+// 하이퍼 NSA 계층
+function aggregateHyperNSAHierarchy(rows, dateFrom, dateTo) {
+  var out = {};
+  var BRAND_MAP = {'키친에이드':'kitchenaid','에코백스':'ecovacs','아노바':'anova'};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var brKey = BRAND_MAP[(r['브랜드']||'').trim()];
+    if (!brKey) continue;
+    var campName = r['캠페인명'] || '';
+    if (brKey === 'kitchenaid' && campName.indexOf('코드리스') !== -1) brKey = 'kitchenaid_codeless';
+    var isBSA = (r['캠페인유형']||'').indexOf('브랜드검색') !== -1;
+    var storageKey = brKey + '__' + (isBSA ? 'nbsa' : 'nsa');
+    if (!out[storageKey]) out[storageKey] = {};
+    addToHierarchy(out[storageKey], campName||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
+  }
+  return out;
+}
+
+// 하이퍼 NGFA 계층
+function aggregateHyperNGFAHierarchy(rows, dateFrom, dateTo) {
+  var out = {};
+  var BK = [{keyword:'키친에이드',key:'kitchenaid'},{keyword:'에코백스',key:'ecovacs'},{keyword:'아노바',key:'anova'}];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var rawDate = r['일별'] || '';
+    var dateStr = rawDate.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+    if (!dateStr || dateStr.length < 10) continue;
+    var camp = (r['캠페인명'] || '').toLowerCase();
+    var brKey = null;
+    for (var k = 0; k < BK.length; k++) { if (camp.indexOf(BK[k].keyword) !== -1) { brKey = BK[k].key; break; } }
+    if (!brKey) continue;
+    var storageKey = brKey + '__ngfa';
+    if (!out[storageKey]) out[storageKey] = {};
+    addToHierarchy(out[storageKey], r['캠페인명']||'(미분류)', r['광고그룹명']||'', r['광고소재']||'', dateStr, dateFrom, dateTo,
+      Number((r['총비용(vat-)']||'').replace(/,/g,''))||0,
+      Number((r['노출수']||'').replace(/,/g,''))||0,
+      Number((r['클릭수']||'').replace(/,/g,''))||0,
+      Number((r['구매완료 전환수']||'').replace(/,/g,''))||0,
+      Number((r['구매완료 매출액']||'').replace(/,/g,''))||0);
+  }
+  return out;
+}
+
+// 계층 캠페인 데이터 가져오기
+function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
+  var cacheKey = 'h__' + brKey + '__' + chKey + '__' + dateFrom + '__' + dateTo;
+  if (campaignCache[cacheKey]) return campaignCache[cacheKey];
+  var result = {};
+  if (sheetsCache.skechers && (brKey === 'skechers_official' || brKey === 'skechers_app')) {
+    var p = sheetsCache.skechers;
+    var nsaH = aggregateNSAHierarchy(p._rawNSA || [], dateFrom, dateTo);
+    var googH = p._rawGoogle ? aggregateGenericHierarchy(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') !== '앱'; }), dateFrom, dateTo, null) : {};
+    var googAppH = p._rawGoogle ? aggregateGenericHierarchy(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') === '앱'; }), dateFrom, dateTo, null) : {};
+    if (brKey === 'skechers_official' && chKey === 'nsa')    result = nsaH.nsa;
+    if (brKey === 'skechers_official' && chKey === 'nbsa')   result = nsaH.nbsa;
+    if (brKey === 'skechers_official' && chKey === 'google') result = googH;
+    if (brKey === 'skechers_app'      && chKey === 'google') result = googAppH;
+  } else if (sheetsCache.minoxell && (brKey === 'minoxell' || brKey === 'oliveyoung')) {
+    var pm = sheetsCache.minoxell;
+    var nsaHM  = aggregateNSAHierarchy(pm._rawNSA || [], dateFrom, dateTo);
+    var metaHM = aggregateGenericHierarchy(pm._rawMeta || [], dateFrom, dateTo, '광고소재');
+    var gfaHM  = aggregateGFAHierarchy(pm._rawNGFA || [], dateFrom, dateTo);
+    if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaHM.nsa;
+    if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaHM.nbsa;
+    if (brKey === 'minoxell'   && chKey === 'meta') result = metaHM;
+    if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaHM.minoxell;
+    if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaHM.oliveyoung;
+  } else if (sheetsCache.hyper) {
+    var ph = sheetsCache.hyper;
+    var nsaHH  = aggregateHyperNSAHierarchy(ph._rawNSA || [], dateFrom, dateTo);
+    var ngfaHH = aggregateHyperNGFAHierarchy(ph._rawNGFA || [], dateFrom, dateTo);
+    var hKey = brKey + '__' + chKey;
+    result = nsaHH[hKey] || ngfaHH[hKey] || {};
+  }
+  campaignCache[cacheKey] = result;
+  return result;
+}
+
 // 네이버SA → 캠페인별 {nsa:{campName:data}, nbsa:{campName:data}}
 function aggregateNSACampaign(rows, dateFrom, dateTo) {
   var nsa = {}, nbsa = {};
@@ -527,7 +673,7 @@ function getCampaignData(brKey, chKey, dateFrom, dateTo) {
 
   var result = {};
 
-  if (sheetsCache.skechers) {
+  if (sheetsCache.skechers && (brKey === 'skechers_official' || brKey === 'skechers_app')) {
     var p = sheetsCache.skechers;
     var nsaCamp  = aggregateNSACampaign(p._rawNSA || [], dateFrom, dateTo);
     var googCamp = p._rawGoogle ? aggregateGenericCampaign(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') !== '앱'; }), dateFrom, dateTo) : {};
@@ -536,8 +682,7 @@ function getCampaignData(brKey, chKey, dateFrom, dateTo) {
     if (brKey === 'skechers_official' && chKey === 'nbsa')   result = nsaCamp.nbsa;
     if (brKey === 'skechers_official' && chKey === 'google') result = googCamp;
     if (brKey === 'skechers_app'      && chKey === 'google') result = googAppCamp;
-  }
-  if (sheetsCache.minoxell) {
+  } else if (sheetsCache.minoxell && (brKey === 'minoxell' || brKey === 'oliveyoung')) {
     var pm = sheetsCache.minoxell;
     var nsaCampM  = aggregateNSACampaign(pm._rawNSA || [], dateFrom, dateTo);
     var metaCampM = aggregateGenericCampaign(pm._rawMeta || [], dateFrom, dateTo);
@@ -547,8 +692,7 @@ function getCampaignData(brKey, chKey, dateFrom, dateTo) {
     if (brKey === 'minoxell'   && chKey === 'meta') result = metaCampM;
     if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaCampM.minoxell;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaCampM.oliveyoung;
-  }
-  if (sheetsCache.hyper) {
+  } else if (sheetsCache.hyper) {
     var ph = sheetsCache.hyper;
     var nsaCampH  = aggregateHyperNSACampaign(ph._rawNSA || [], dateFrom, dateTo);
     var ngfaCampH = aggregateHyperNGFACampaign(ph._rawNGFA || [], dateFrom, dateTo);
@@ -1707,7 +1851,19 @@ function getEffectiveCols() {
   });
 }
 
-var tableSort = {key: null, asc: true};
+var tableSort     = {key: null, asc: true};
+var campTableSort = {key: 'cost', asc: false};
+var expandedCamps  = {}; // 'campName' → true/false
+var expandedGroups = {}; // 'campName__groupName' → true/false
+
+function toggleCampExpand(key) {
+  expandedCamps[key] = !expandedCamps[key];
+  renderCampaignTable();
+}
+function toggleGroupExpand(key) {
+  expandedGroups[key] = !expandedGroups[key];
+  renderCampaignTable();
+}
 
 function calcExtended(d) {
   var base = calc(d);
@@ -1842,71 +1998,122 @@ function renderCampaignTable() {
   buildCampColDropdown();
 
   // 헤더 (매체 컬럼 추가)
-  var headHtml = '<th style="padding:9px 14px;text-align:left;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">캠페인명</th>';
+  var thBase = 'padding:9px 14px;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;cursor:pointer;user-select:none';
+  var headHtml = '<th style="' + thBase + ';text-align:left" onclick="sortCampTable(\'name\')">캠페인명' + sortArrow('name', campTableSort) + '</th>';
   if (activeChs.length > 1) {
-    headHtml += '<th style="padding:9px 14px;text-align:left;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">매체</th>';
+    headHtml += '<th style="' + thBase + ';text-align:left">매체</th>';
   }
   for (var j = 0; j < CAMP_COLS.length; j++) {
-    headHtml += '<th style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap">' + CAMP_COLS[j].label + '</th>';
+    headHtml += '<th style="' + thBase + ';text-align:right" onclick="sortCampTable(\'' + CAMP_COLS[j].key + '\')">' + CAMP_COLS[j].label + sortArrow(CAMP_COLS[j].key, campTableSort) + '</th>';
   }
   document.getElementById('campTableHead').innerHTML = headHtml;
 
-  // 매체별로 캠페인 합산
-  var allRows = []; // {name, ch, cost, ...}
+  var multiCh = activeChs.length > 1;
+  var colSpan  = CAMP_COLS.length + 1 + (multiCh ? 1 : 0);
+
+  // 캠페인별 계층 데이터 수집
+  var hierMerged = {};
   for (var ci = 0; ci < activeChs.length; ci++) {
     var chKey = activeChs[ci];
-    var merged = {};
     for (var bi = 0; bi < bk.length; bi++) {
-      var campData = getCampaignData(bk[bi], chKey, dateFrom, dateTo);
-      var camps = Object.keys(campData);
-      for (var k = 0; k < camps.length; k++) {
-        var name = camps[k];
-        var d = campData[name];
-        if (!merged[name]) merged[name] = {name:name, ch:chKey, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-        merged[name].cost        += d.cost;
-        merged[name].impressions += d.impressions;
-        merged[name].clicks      += d.clicks;
-        merged[name].conversions += d.conversions;
-        merged[name].revenue     += d.revenue;
+      var hier = getCampaignHierarchy(bk[bi], chKey, dateFrom, dateTo);
+      var camps = Object.keys(hier);
+      for (var ki = 0; ki < camps.length; ki++) {
+        var cn = camps[ki]; var hc = hier[cn];
+        var rowKey = cn + '__' + chKey;
+        if (!hierMerged[rowKey]) hierMerged[rowKey] = {name:cn, ch:chKey, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, groups:{}};
+        hierMerged[rowKey].cost += hc.cost; hierMerged[rowKey].impressions += hc.impressions; hierMerged[rowKey].clicks += hc.clicks; hierMerged[rowKey].conversions += hc.conversions; hierMerged[rowKey].revenue += hc.revenue;
+        var gkeys = Object.keys(hc.groups || {});
+        for (var gi = 0; gi < gkeys.length; gi++) {
+          var gn = gkeys[gi]; var gc = hc.groups[gn];
+          if (!hierMerged[rowKey].groups[gn]) hierMerged[rowKey].groups[gn] = {name:gn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, creatives:{}};
+          hierMerged[rowKey].groups[gn].cost += gc.cost; hierMerged[rowKey].groups[gn].impressions += gc.impressions; hierMerged[rowKey].groups[gn].clicks += gc.clicks; hierMerged[rowKey].groups[gn].conversions += gc.conversions; hierMerged[rowKey].groups[gn].revenue += gc.revenue;
+          var crkeys = Object.keys(gc.creatives || {});
+          for (var cri2 = 0; cri2 < crkeys.length; cri2++) {
+            var crn = crkeys[cri2]; var crc = gc.creatives[crn];
+            if (!hierMerged[rowKey].groups[gn].creatives[crn]) hierMerged[rowKey].groups[gn].creatives[crn] = {name:crn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+            hierMerged[rowKey].groups[gn].creatives[crn].cost += crc.cost; hierMerged[rowKey].groups[gn].creatives[crn].impressions += crc.impressions; hierMerged[rowKey].groups[gn].creatives[crn].clicks += crc.clicks; hierMerged[rowKey].groups[gn].creatives[crn].conversions += crc.conversions; hierMerged[rowKey].groups[gn].creatives[crn].revenue += crc.revenue;
+          }
+        }
       }
     }
-    var chRows = Object.values(merged).filter(function(r){ return r.impressions > 0 || r.conversions > 0; });
-    chRows.sort(function(a,b){ return b.cost - a.cost; });
-    allRows = allRows.concat(chRows);
   }
 
+  var allRows = Object.values(hierMerged).filter(function(r){ return r.impressions > 0 || r.conversions > 0; });
+
+  allRows.sort(function(a, b) {
+    var da = calc(a), db = calc(b);
+    var av = campTableSort.key === 'name' ? a.name : (da[campTableSort.key] || 0);
+    var bv = campTableSort.key === 'name' ? b.name : (db[campTableSort.key] || 0);
+    if (av < bv) return campTableSort.asc ? -1 : 1;
+    if (av > bv) return campTableSort.asc ? 1 : -1;
+    return 0;
+  });
+
   if (allRows.length === 0) {
-    document.getElementById('campTbody').innerHTML = '<tr><td colspan="' + (CAMP_COLS.length + (activeChs.length > 1 ? 2 : 1)) + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
+    document.getElementById('campTbody').innerHTML = '<tr><td colspan="' + colSpan + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
     return;
   }
 
+  function tdNum(val, type)         { return '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">' + fmt(val, type) + '</td>'; }
+  function tdNumSub(val, type)      { return '<td style="padding:6px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)">' + fmt(val, type) + '</td>'; }
+  function tdNumCreative(val, type) { return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);opacity:.8">' + fmt(val, type) + '</td>'; }
+
   var html = '';
   var total = {cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+
   for (var i = 0; i < allRows.length; i++) {
     var r = allRows[i];
     var d2 = calc(r);
-    total.cost        += r.cost;
-    total.impressions += r.impressions;
-    total.clicks      += r.clicks;
-    total.conversions += r.conversions;
-    total.revenue     += r.revenue;
-    html += '<tr style="border-bottom:1px solid var(--border)">';
-    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</td>';
-    if (activeChs.length > 1) {
-      html += '<td style="padding:10px 14px;font-size:11px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
-    }
-    for (var j = 0; j < CAMP_COLS.length; j++) {
-      html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">' + fmt(d2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
-    }
+    var expKey = r.name + '__' + r.ch;
+    var isExp  = !!expandedCamps[expKey];
+    var hasGroups = Object.keys(r.groups || {}).length > 0;
+    total.cost += r.cost; total.impressions += r.impressions; total.clicks += r.clicks; total.conversions += r.conversions; total.revenue += r.revenue;
+
+    html += '<tr style="border-bottom:1px solid var(--border);' + (hasGroups ? 'cursor:pointer' : '') + '" ' + (hasGroups ? 'onclick="toggleCampExpand(\'' + expKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : '') + '>';
+    html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:var(--text);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+    html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasGroups ? (isExp ? '▼' : '▶') : '') + '</span>';
+    html += r.name + '</td>';
+    if (multiCh) html += '<td style="padding:10px 14px;font-size:11px"><span class="ch-pill ' + r.ch + '">' + CH_NAME[r.ch] + '</span></td>';
+    for (var j = 0; j < CAMP_COLS.length; j++) html += tdNum(d2[CAMP_COLS[j].key], CAMP_COLS[j].type);
     html += '</tr>';
+
+    if (!isExp || !hasGroups) continue;
+
+    var groups = Object.values(r.groups).sort(function(a,b){ return b.cost - a.cost; });
+    for (var gi = 0; gi < groups.length; gi++) {
+      var grp = groups[gi]; var gd = calc(grp);
+      var gExpKey = expKey + '__' + grp.name;
+      var gIsExp  = !!expandedGroups[gExpKey];
+      var hasCreatives = Object.keys(grp.creatives || {}).filter(function(k){ return k; }).length > 0;
+
+      html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);' + (hasCreatives ? 'cursor:pointer' : '') + '" ' + (hasCreatives ? 'onclick="event.stopPropagation();toggleGroupExpand(\'' + gExpKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"' : 'onclick="event.stopPropagation()"') + '>';
+      html += '<td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:var(--muted);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+      html += '<span style="display:inline-block;width:16px;color:var(--muted);font-size:9px">' + (hasCreatives ? (gIsExp ? '▼' : '▶') : '') + '</span>';
+      html += grp.name + '</td>';
+      if (multiCh) html += '<td></td>';
+      for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumSub(gd[CAMP_COLS[j].key], CAMP_COLS[j].type);
+      html += '</tr>';
+
+      if (!gIsExp || !hasCreatives) continue;
+
+      var creatives = Object.values(grp.creatives).filter(function(c){ return c.name; }).sort(function(a,b){ return b.cost - a.cost; });
+      for (var cri = 0; cri < creatives.length; cri++) {
+        var cr = creatives[cri]; var crd = calc(cr);
+        html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()">';
+        html += '<td style="padding:6px 14px 6px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:var(--muted);opacity:.8;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">◦ ' + cr.name + '</td>';
+        if (multiCh) html += '<td></td>';
+        for (var j = 0; j < CAMP_COLS.length; j++) html += tdNumCreative(crd[CAMP_COLS[j].key], CAMP_COLS[j].type);
+        html += '</tr>';
+      }
+    }
   }
 
-  // 합계
   if (allRows.length > 1) {
     var tc2 = calc(total);
     html += '<tr style="border-top:2px solid var(--border2);background:var(--bg3)">';
     html += '<td style="padding:10px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:600">합계</td>';
-    if (activeChs.length > 1) html += '<td></td>';
+    if (multiCh) html += '<td></td>';
     for (var j = 0; j < CAMP_COLS.length; j++) {
       html += '<td style="padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">' + fmt(tc2[CAMP_COLS[j].key], CAMP_COLS[j].type) + '</td>';
     }
@@ -1920,11 +2127,26 @@ function sortTable(key) {
     tableSort.asc = !tableSort.asc;
   } else {
     tableSort.key = key;
-    tableSort.asc = false; // default: 높은 값 먼저
+    tableSort.asc = false;
   }
   var bk = brandKeys(), ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   renderTable(cm, ck);
+}
+
+function sortCampTable(key) {
+  if (campTableSort.key === key) {
+    campTableSort.asc = !campTableSort.asc;
+  } else {
+    campTableSort.key = key;
+    campTableSort.asc = false;
+  }
+  renderCampaignTable();
+}
+
+function sortArrow(key, sortState) {
+  if (sortState.key !== key) return ' <span style="opacity:.3">↕</span>';
+  return sortState.asc ? ' <span>↑</span>' : ' <span>↓</span>';
 }
 
 function filterChTabs() {
