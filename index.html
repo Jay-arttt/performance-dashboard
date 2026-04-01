@@ -749,13 +749,13 @@ function parseCSV(text) {
 // CSV 행 → 날짜별 합산 (네이버SA) → {nsa, nbsa} 분리
 function aggregateNSA(rows) {
   var nsa = {}, nbsa = {};
-  var COL_DATE = '일자';
-  var COL_TYPE = '캠페인유형';
-  var COL_COST = '총비용(vat-)';
-  var COL_IMPR = '노출수';
+  var COL_DATE  = '일자';
+  var COL_TYPE  = '캠페인유형';
+  var COL_COST  = '총비용(vat-)';
+  var COL_IMPR  = '노출수';
   var COL_CLICK = '클릭수';
-  var COL_CONV = '구매완료 전환수';
-  var COL_REV  = '구매완료 매출액';
+  var COL_CONV  = '구매완료 전환수';
+  var COL_REV   = '구매완료 매출액';
 
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
@@ -776,13 +776,13 @@ function aggregateNSA(rows) {
 // CSV 행 → 날짜별 합산 (구글DA, mode: 'official' | 'app')
 function aggregateGoogleDA(rows, mode) {
   var byDate = {};
-  var COL_DATE  = '일자';
-  var COL_TYPE  = '캠페인유형';
-  var COL_COST  = '총비용(vat-)';
-  var COL_IMPR  = '노출수';
-  var COL_CLICK = '클릭수';
-  var COL_CONV  = '총 구매수';
-  var COL_REV   = '총 매출액';
+  var COL_DATE    = '일자';
+  var COL_TYPE    = '캠페인유형';
+  var COL_COST    = '총비용(vat-)';
+  var COL_IMPR    = '노출수';
+  var COL_CLICK   = '클릭수';
+  var COL_CONV    = '총 구매수';
+  var COL_REV     = '총 매출액';
   var COL_APP_AND = '앱설치(Android)';
   var COL_APP_IOS = '앱설치(iOS)';
 
@@ -793,14 +793,15 @@ function aggregateGoogleDA(rows, mode) {
     if (mode === 'official' && type === '앱') continue;
     var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
     if (!dateStr) continue;
-    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    if (!byDate[dateStr]) byDate[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, app_installs:0};
     byDate[dateStr].cost        += Number(r[COL_COST])  || 0;
     byDate[dateStr].impressions += Number(r[COL_IMPR])  || 0;
     byDate[dateStr].clicks      += Number(r[COL_CLICK]) || 0;
     byDate[dateStr].revenue     += Number(r[COL_REV])   || 0;
-    // 앱 캠페인은 앱설치수, 공식몰은 구매수
     if (mode === 'app') {
-      byDate[dateStr].conversions += (Number(r[COL_APP_AND]) || 0) + (Number(r[COL_APP_IOS]) || 0);
+      var installs = (Number(r[COL_APP_AND]) || 0) + (Number(r[COL_APP_IOS]) || 0);
+      byDate[dateStr].conversions   += installs;
+      byDate[dateStr].app_installs  += installs;
     } else {
       byDate[dateStr].conversions += Number(r[COL_CONV]) || 0;
     }
@@ -810,7 +811,7 @@ function aggregateGoogleDA(rows, mode) {
 
 // byDate 객체 → 날짜 범위 합산 → {cost,...}
 function sumByDateRange(byDate, dateFrom, dateTo) {
-  var out = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+  var out = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
   var keys = Object.keys(byDate);
   for (var i = 0; i < keys.length; i++) {
     var d = keys[i];
@@ -819,7 +820,8 @@ function sumByDateRange(byDate, dateFrom, dateTo) {
     out.revenue     += byDate[d].revenue;
     out.clicks      += byDate[d].clicks;
     out.impressions += byDate[d].impressions;
-    out.conversions += byDate[d].conversions;
+    out.conversions   += byDate[d].conversions;
+    out.app_installs  += byDate[d].app_installs || 0;
   }
   return out;
 }
@@ -1281,34 +1283,40 @@ function sumData(bk, ck, dataset) {
 }
 
 function calc(d) {
+  var installs = d.app_installs || 0;
   return {
-    cost:        d.cost,
-    revenue:     d.revenue,
-    roas:        d.revenue / d.cost,
-    cvr:         d.conversions / d.clicks,
-    clicks:      d.clicks,
-    cpc:         d.cost / d.clicks,
-    ctr:         d.clicks / d.impressions,
-    impressions: d.impressions,
-    cpm:         d.cost / d.impressions * 1000,
-    conversions: d.conversions,
-    cpa:         d.conversions > 0 ? d.cost / d.conversions : 0
+    cost:         d.cost,
+    revenue:      d.revenue,
+    roas:         d.revenue / d.cost,
+    cvr:          d.conversions / d.clicks,
+    clicks:       d.clicks,
+    cpc:          d.cost / d.clicks,
+    ctr:          d.clicks / d.impressions,
+    impressions:  d.impressions,
+    cpm:          d.cost / d.impressions * 1000,
+    conversions:  d.conversions,
+    cpa:          d.conversions > 0 ? d.cost / d.conversions : 0,
+    app_installs: installs,
+    cpi:          installs > 0 ? d.cost / installs : 0,
+    install_rate: d.clicks > 0 ? installs / d.clicks : 0
   };
 }
 
 function aggCalc(map) {
-  var s = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0};
+  var s = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0, app_installs: 0};
   var keys = Object.keys(map);
   for (var i = 0; i < keys.length; i++) {
     var d = map[keys[i]];
-    s.cost        += d.cost;
-    s.revenue     += d.revenue;
-    s.clicks      += d.clicks;
-    s.impressions += d.impressions;
-    s.conversions += d.conversions;
+    s.cost         += d.cost;
+    s.revenue      += d.revenue;
+    s.clicks       += d.clicks;
+    s.impressions  += d.impressions;
+    s.conversions  += d.conversions;
+    s.app_installs += d.app_installs || 0;
   }
   var result = calc(s);
   result.cpa = s.conversions > 0 ? s.cost / s.conversions : 0;
+  result.cpi = s.app_installs > 0 ? s.cost / s.app_installs : 0;
   return result;
 }
 
@@ -1364,12 +1372,13 @@ function renderKPIs(cm, pm) {
   var html = '';
   for (var i = 0; i < kpiList.length; i++) {
     var k = kpiList[i];
-    var label = (override && override.labelOverrides && override.labelOverrides[k.key]) ? override.labelOverrides[k.key] : k.label;
-    var v = ca[k.key];
-    var p = pa[k.key];
+    var label   = (override && override.labelOverrides && override.labelOverrides[k.key]) ? override.labelOverrides[k.key] : k.label;
+    var dataKey = (override && override.keyOverrides  && override.keyOverrides[k.key])   ? override.keyOverrides[k.key]   : k.key;
+    var v = ca[dataKey];
+    var p = pa[dataKey];
     var diff = v - p;
     var isUp = diff >= 0;
-    var isCostMetric = (k.key === 'cost' || k.key === 'cpc' || k.key === 'cpm' || k.key === 'cpa');
+    var isCostMetric = (dataKey === 'cost' || dataKey === 'cpc' || dataKey === 'cpm' || dataKey === 'cpa' || dataKey === 'cpi');
     var isGood = isCostMetric ? !isUp : isUp;
     var diffLabel = (isUp ? '+' : '') + fmt(diff, k.type);
     html += '<div class="kpi-card">';
@@ -1846,6 +1855,7 @@ var BRAND_OVERRIDES = {
     kpiOrder: ['cost', 'conversions', 'cvr', 'cpa', 'clicks', 'ctr', 'cpc', 'impressions', 'cpm']
   },
   skechers_app: {
+    keyOverrides:  {conversions: 'app_installs', cpa: 'cpi', cvr: 'install_rate'},
     labelOverrides: {conversions: '앱설치수', cpa: 'CPI', cvr: '설치율'}
   }
 };
