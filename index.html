@@ -39,8 +39,9 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 .date-btn { font-family: 'Inter', sans-serif; font-size: 12px; padding: 6px 13px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
 .date-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 .date-btn:hover:not(.active) { color: var(--text); border-color: var(--text); }
-.date-input-wrap { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 5px 10px; }
-.date-input-wrap input[type=date] { font-family: 'Inter', sans-serif; font-size: 12px; border: none; background: transparent; color: var(--text); outline: none; cursor: pointer; color-scheme: dark; }
+.date-input-wrap { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.date-input-wrap input[type=date] { font-family: 'Inter', sans-serif; font-size: 12px; border: none; background: transparent; color: var(--text); outline: none; cursor: pointer; color-scheme: light; }
+.date-input-wrap input[type=date]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; filter: invert(0); }
 .date-sep { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--muted); }
 .apply-btn { font-family: 'Inter', sans-serif; font-size: 12px; padding: 5px 12px; border-radius: 6px; border: none; background: var(--text); color: var(--bg); cursor: pointer; }
 .apply-btn:hover { opacity: .75; }
@@ -2576,11 +2577,13 @@ function setThisMonth(btn) {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   btn.classList.add('active');
   var today = new Date();
+  var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
   var yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  var from = today.getFullYear() + '-' + (today.getMonth()+1 < 10 ? '0' : '') + (today.getMonth()+1) + '-01';
+  var from = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-01';
+  var to   = yesterday.getFullYear() + '-' + pad(yesterday.getMonth() + 1) + '-' + pad(yesterday.getDate());
   document.getElementById('dateFrom').value = from;
-  document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
+  document.getElementById('dateTo').value   = to;
   updateLabel();
   saveDateRange();
   sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
@@ -2592,11 +2595,15 @@ function setLastMonth(btn) {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   btn.classList.add('active');
   var today = new Date();
-  var firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  var lastOfLastMonth  = new Date(firstOfThisMonth - 1);
-  var firstOfLastMonth = new Date(lastOfLastMonth.getFullYear(), lastOfLastMonth.getMonth(), 1);
-  document.getElementById('dateFrom').value = firstOfLastMonth.toISOString().slice(0, 10);
-  document.getElementById('dateTo').value   = lastOfLastMonth.toISOString().slice(0, 10);
+  var y = today.getFullYear();
+  var m = today.getMonth(); // 0-indexed, 현재 월
+  // 지난달 = m-1 (0-indexed)
+  var lastM = m === 0 ? 11 : m - 1;
+  var lastY = m === 0 ? y - 1 : y;
+  var lastDay = new Date(lastY, lastM + 1, 0).getDate(); // 지난달 말일
+  var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  document.getElementById('dateFrom').value = lastY + '-' + pad(lastM + 1) + '-01';
+  document.getElementById('dateTo').value   = lastY + '-' + pad(lastM + 1) + '-' + pad(lastDay);
   updateLabel();
   saveDateRange();
   sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
