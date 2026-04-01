@@ -373,7 +373,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 
 </div><!-- /page-wrap -->
 <script>
-var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
 var RAW = {
   skechers_official: {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
   skechers_app:      {meta:EMPTY, google:EMPTY, google_app:EMPTY, kakao:EMPTY, ngfa:EMPTY, nsa:EMPTY, nbsa:EMPTY},
@@ -423,18 +423,18 @@ function addToCampaign(obj, camp, dateStr, dateFrom, dateTo, cost, impr, click, 
 }
 
 // 계층적 집계: {캠페인명: {data, groups: {그룹명: {data, creatives: {소재명: data}}}}}
-function addToHierarchy(hier, camp, group, creative, dateStr, dateFrom, dateTo, cost, impr, click, conv, rev, cartConv, cartRev) {
+function addToHierarchy(hier, camp, group, creative, dateStr, dateFrom, dateTo, cost, impr, click, conv, rev, cartConv, cartRev, appInstalls) {
   if (dateStr < dateFrom || dateStr > dateTo) return;
-  cartConv = cartConv || 0; cartRev = cartRev || 0;
-  var empty = function(name) { return {name:name, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0}; };
+  cartConv = cartConv || 0; cartRev = cartRev || 0; appInstalls = appInstalls || 0;
+  var empty = function(name) { return {name:name, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0, app_installs:0}; };
   if (!hier[camp]) hier[camp] = Object.assign(empty(camp), {groups:{}});
-  hier[camp].cost += cost; hier[camp].impressions += impr; hier[camp].clicks += click; hier[camp].conversions += conv; hier[camp].revenue += rev; hier[camp].cart_conv += cartConv; hier[camp].cart_rev += cartRev;
+  hier[camp].cost += cost; hier[camp].impressions += impr; hier[camp].clicks += click; hier[camp].conversions += conv; hier[camp].revenue += rev; hier[camp].cart_conv += cartConv; hier[camp].cart_rev += cartRev; hier[camp].app_installs += appInstalls;
   if (group) {
     if (!hier[camp].groups[group]) hier[camp].groups[group] = Object.assign(empty(group), {creatives:{}});
-    hier[camp].groups[group].cost += cost; hier[camp].groups[group].impressions += impr; hier[camp].groups[group].clicks += click; hier[camp].groups[group].conversions += conv; hier[camp].groups[group].revenue += rev; hier[camp].groups[group].cart_conv += cartConv; hier[camp].groups[group].cart_rev += cartRev;
+    hier[camp].groups[group].cost += cost; hier[camp].groups[group].impressions += impr; hier[camp].groups[group].clicks += click; hier[camp].groups[group].conversions += conv; hier[camp].groups[group].revenue += rev; hier[camp].groups[group].cart_conv += cartConv; hier[camp].groups[group].cart_rev += cartRev; hier[camp].groups[group].app_installs += appInstalls;
     if (creative) {
       if (!hier[camp].groups[group].creatives[creative]) hier[camp].groups[group].creatives[creative] = empty(creative);
-      hier[camp].groups[group].creatives[creative].cost += cost; hier[camp].groups[group].creatives[creative].impressions += impr; hier[camp].groups[group].creatives[creative].clicks += click; hier[camp].groups[group].creatives[creative].conversions += conv; hier[camp].groups[group].creatives[creative].revenue += rev; hier[camp].groups[group].creatives[creative].cart_conv += cartConv; hier[camp].groups[group].creatives[creative].cart_rev += cartRev;
+      hier[camp].groups[group].creatives[creative].cost += cost; hier[camp].groups[group].creatives[creative].impressions += impr; hier[camp].groups[group].creatives[creative].clicks += click; hier[camp].groups[group].creatives[creative].conversions += conv; hier[camp].groups[group].creatives[creative].revenue += rev; hier[camp].groups[group].creatives[creative].cart_conv += cartConv; hier[camp].groups[group].creatives[creative].cart_rev += cartRev; hier[camp].groups[group].creatives[creative].app_installs += appInstalls;
     }
   }
 }
@@ -465,6 +465,25 @@ function aggregateGenericHierarchy(rows, dateFrom, dateTo, creativeCol) {
     var creative = creativeCol ? (r[creativeCol] || '') : null;
     addToHierarchy(out, r['캠페인명']||'(미분류)', r['광고그룹명']||'', creative, dateStr, dateFrom, dateTo,
       Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
+  }
+  return out;
+}
+
+// 스케쳐스 Google 전용: 총구매수/총매출액, 앱 캠페인은 앱설치수
+function aggregateSkechersGoogleHierarchy(rows, dateFrom, dateTo, isApp) {
+  var out = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var type = r['캠페인유형'] || '';
+    if (isApp  && type !== '앱') continue;
+    if (!isApp && type === '앱') continue;
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var installs = isApp ? ((Number(r['앱설치(Android)'])||0) + (Number(r['앱설치(iOS)'])||0)) : 0;
+    var conv    = isApp ? installs : (Number(r['총 구매수'])||0);
+    var rev     = Number(r['총 매출액'])||0;
+    addToHierarchy(out, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
+      Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, conv, rev, 0, 0, installs);
   }
   return out;
 }
@@ -546,9 +565,9 @@ function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
   var result = {};
   if (sheetsCache.skechers && (brKey === 'skechers_official' || brKey === 'skechers_app')) {
     var p = sheetsCache.skechers;
-    var nsaH = aggregateNSAHierarchy(p._rawNSA || [], dateFrom, dateTo);
-    var googH = p._rawGoogle ? aggregateGenericHierarchy(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') !== '앱'; }), dateFrom, dateTo, null) : {};
-    var googAppH = p._rawGoogle ? aggregateGenericHierarchy(p._rawGoogle.filter(function(r){ return (r['캠페인유형']||'') === '앱'; }), dateFrom, dateTo, null) : {};
+    var nsaH     = aggregateNSAHierarchy(p._rawNSA || [], dateFrom, dateTo);
+    var googH    = p._rawGoogle ? aggregateSkechersGoogleHierarchy(p._rawGoogle, dateFrom, dateTo, false) : {};
+    var googAppH = p._rawGoogle ? aggregateSkechersGoogleHierarchy(p._rawGoogle, dateFrom, dateTo, true)  : {};
     if (brKey === 'skechers_official' && chKey === 'nsa')    result = nsaH.nsa;
     if (brKey === 'skechers_official' && chKey === 'nbsa')   result = nsaH.nbsa;
     if (brKey === 'skechers_official' && chKey === 'google') result = googH;
@@ -827,7 +846,7 @@ function sumByDateRange(byDate, dateFrom, dateTo) {
 }
 
 function buildSkechersRaw(parsed, dateFrom, dateTo) {
-  var empty = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+  var empty = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
   return {
     skechers_official: {
       google: sumByDateRange(parsed.googleOfficial, dateFrom, dateTo),
@@ -1267,16 +1286,17 @@ function sumData(bk, ck, dataset) {
   var out = {};
   for (var ci = 0; ci < ck.length; ci++) {
     var c = ck[ci];
-    out[c] = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0};
+    out[c] = {cost: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0, app_installs: 0};
     for (var bi = 0; bi < bk.length; bi++) {
       var b = bk[bi];
       if (!dataset[b] || !dataset[b][c]) continue;
       var d = dataset[b][c];
-      out[c].cost        += d.cost;
-      out[c].revenue     += d.revenue;
-      out[c].clicks      += d.clicks;
-      out[c].impressions += d.impressions;
-      out[c].conversions += d.conversions;
+      out[c].cost         += d.cost;
+      out[c].revenue      += d.revenue;
+      out[c].clicks       += d.clicks;
+      out[c].impressions  += d.impressions;
+      out[c].conversions  += d.conversions;
+      out[c].app_installs += d.app_installs || 0;
     }
   }
   return out;
@@ -2080,6 +2100,7 @@ function renderCampaignTable() {
   // 네이버 SA/DA 전용 추가 컬럼
   var NAVER_CHS = ['nsa', 'nbsa', 'ngfa'];
   var isNaverOnly = activeChs.length > 0 && activeChs.every(function(ch){ return NAVER_CHS.indexOf(ch) !== -1; });
+  var isSkechersApp = S.brand === 'skechers' && S.sub === 'skechers_app';
   var EXTRA_COLS = isNaverOnly ? [
     {key:'conversions', label:'구매완료수',  type:'num'},
     {key:'cart_conv',   label:'장바구니수',  type:'num'},
@@ -2088,6 +2109,10 @@ function renderCampaignTable() {
     {key:'total_conv',  label:'총전환수',    type:'num'},
     {key:'total_rev',   label:'총매출',      type:'won'},
     {key:'total_cpa',   label:'총CPA',       type:'cpc'}
+  ] : isSkechersApp ? [
+    {key:'app_installs', label:'앱설치수', type:'num'},
+    {key:'cpi',          label:'CPI',      type:'cpc'},
+    {key:'install_rate', label:'설치율',   type:'pct'}
   ] : [];
 
   // 헤더
@@ -2117,18 +2142,18 @@ function renderCampaignTable() {
       for (var ki = 0; ki < camps.length; ki++) {
         var cn = camps[ki]; var hc = hier[cn];
         var rowKey = cn + '__' + chKey;
-        if (!hierMerged[rowKey]) hierMerged[rowKey] = {name:cn, ch:chKey, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, groups:{}};
-        hierMerged[rowKey].cost += hc.cost; hierMerged[rowKey].impressions += hc.impressions; hierMerged[rowKey].clicks += hc.clicks; hierMerged[rowKey].conversions += hc.conversions; hierMerged[rowKey].revenue += hc.revenue;
+        if (!hierMerged[rowKey]) hierMerged[rowKey] = {name:cn, ch:chKey, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0, app_installs:0, groups:{}};
+        hierMerged[rowKey].cost += hc.cost; hierMerged[rowKey].impressions += hc.impressions; hierMerged[rowKey].clicks += hc.clicks; hierMerged[rowKey].conversions += hc.conversions; hierMerged[rowKey].revenue += hc.revenue; hierMerged[rowKey].cart_conv += (hc.cart_conv||0); hierMerged[rowKey].cart_rev += (hc.cart_rev||0); hierMerged[rowKey].app_installs += (hc.app_installs||0);
         var gkeys = Object.keys(hc.groups || {});
         for (var gi = 0; gi < gkeys.length; gi++) {
           var gn = gkeys[gi]; var gc = hc.groups[gn];
-          if (!hierMerged[rowKey].groups[gn]) hierMerged[rowKey].groups[gn] = {name:gn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, creatives:{}};
-          hierMerged[rowKey].groups[gn].cost += gc.cost; hierMerged[rowKey].groups[gn].impressions += gc.impressions; hierMerged[rowKey].groups[gn].clicks += gc.clicks; hierMerged[rowKey].groups[gn].conversions += gc.conversions; hierMerged[rowKey].groups[gn].revenue += gc.revenue;
+          if (!hierMerged[rowKey].groups[gn]) hierMerged[rowKey].groups[gn] = {name:gn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0, app_installs:0, creatives:{}};
+          hierMerged[rowKey].groups[gn].cost += gc.cost; hierMerged[rowKey].groups[gn].impressions += gc.impressions; hierMerged[rowKey].groups[gn].clicks += gc.clicks; hierMerged[rowKey].groups[gn].conversions += gc.conversions; hierMerged[rowKey].groups[gn].revenue += gc.revenue; hierMerged[rowKey].groups[gn].cart_conv += (gc.cart_conv||0); hierMerged[rowKey].groups[gn].cart_rev += (gc.cart_rev||0); hierMerged[rowKey].groups[gn].app_installs += (gc.app_installs||0);
           var crkeys = Object.keys(gc.creatives || {});
           for (var cri2 = 0; cri2 < crkeys.length; cri2++) {
             var crn = crkeys[cri2]; var crc = gc.creatives[crn];
-            if (!hierMerged[rowKey].groups[gn].creatives[crn]) hierMerged[rowKey].groups[gn].creatives[crn] = {name:crn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
-            hierMerged[rowKey].groups[gn].creatives[crn].cost += crc.cost; hierMerged[rowKey].groups[gn].creatives[crn].impressions += crc.impressions; hierMerged[rowKey].groups[gn].creatives[crn].clicks += crc.clicks; hierMerged[rowKey].groups[gn].creatives[crn].conversions += crc.conversions; hierMerged[rowKey].groups[gn].creatives[crn].revenue += crc.revenue;
+            if (!hierMerged[rowKey].groups[gn].creatives[crn]) hierMerged[rowKey].groups[gn].creatives[crn] = {name:crn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0, app_installs:0};
+            hierMerged[rowKey].groups[gn].creatives[crn].cost += crc.cost; hierMerged[rowKey].groups[gn].creatives[crn].impressions += crc.impressions; hierMerged[rowKey].groups[gn].creatives[crn].clicks += crc.clicks; hierMerged[rowKey].groups[gn].creatives[crn].conversions += crc.conversions; hierMerged[rowKey].groups[gn].creatives[crn].revenue += crc.revenue; hierMerged[rowKey].groups[gn].creatives[crn].app_installs += (crc.app_installs||0);
           }
         }
       }
