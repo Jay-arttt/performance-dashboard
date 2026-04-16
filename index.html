@@ -2457,7 +2457,7 @@ function renderMetaCreatives() {
     var grp   = r['광고그룹명'] || '(미분류)';
     var adId  = r['광고소재 ID'] || r['광고소재명'] || '(미분류)';  // ID를 키로
     var adName = r['광고소재명'] || '(미분류)';                       // 이름은 표시용
-    var thumb = r['썸네일 URL'] || '';
+    var thumb = r['이미지 URL'] || '';
     var cost  = Number(r['총비용(vat-)']) || 0;
     var conv  = Number(r['구매완료 전환수']) || 0;
     var rev   = Number(r['구매완료 매출액']) || 0;
@@ -2548,9 +2548,9 @@ function renderMetaCreatives() {
         html += '<td style="padding:8px 14px 8px 50px;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">';
         html += '<div style="display:flex;align-items:center;gap:12px">';
         if (ad.thumb) {
-          html += '<img src="' + ad.thumb + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" onerror="this.style.display=\'none\'">';
+          html += '<img src="' + ad.thumb + '" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" onerror="this.style.display=\'none\'">';
         } else {
-          html += '<div style="width:80px;height:80px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">🖼</div>';
+          html += '<div style="width:160px;height:160px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">🖼</div>';
         }
         html += '<span style="font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568">◦ ' + ad.name + '</span>';
         html += '</div></td>';
