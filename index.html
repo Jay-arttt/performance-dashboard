@@ -371,6 +371,15 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
+<!-- Meta 소재별 데이터 섹션 -->
+<div class="table-section" id="metaCreativeSection" style="display:none">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between">
+    <span>Meta 소재별 데이터</span>
+    <span id="metaCreativePeriod" style="font-size:11px;color:var(--muted);font-weight:400"></span>
+  </div>
+  <div id="metaCreativeTree" style="padding:8px 0"></div>
+</div>
+
 </div><!-- /page-wrap -->
 <script>
 var EMPTY = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
@@ -2390,6 +2399,196 @@ function syncCampScrollbar() {
   });
 }
 
+// ── Meta 소재별 섹션 ────────────────────────────────────────────
+var metaExpandedCamps  = {};
+var metaExpandedGroups = {};
+
+function toggleMetaCamp(key) {
+  metaExpandedCamps[key] = !metaExpandedCamps[key];
+  renderMetaCreatives();
+}
+function toggleMetaGroup(key) {
+  metaExpandedGroups[key] = !metaExpandedGroups[key];
+  renderMetaCreatives();
+}
+
+function renderMetaCreatives() {
+  var section = document.getElementById('metaCreativeSection');
+  var tree    = document.getElementById('metaCreativeTree');
+  var period  = document.getElementById('metaCreativePeriod');
+  if (!section || !tree) return;
+
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+  var bk = brandKeys();
+
+  // Meta rawRows 수집
+  var rows = [];
+  for (var bi = 0; bi < bk.length; bi++) {
+    var cache = null;
+    if (bk[bi].indexOf('skechers') !== -1 && sheetsCache.skechers) cache = sheetsCache.skechers;
+    else if ((bk[bi] === 'minoxell' || bk[bi] === 'oliveyoung') && sheetsCache.minoxell) cache = sheetsCache.minoxell;
+    else if (bk[bi] === 'careerbud' && sheetsCache.careerbud) cache = sheetsCache.careerbud;
+    if (cache && cache._rawMeta) rows = rows.concat(cache._rawMeta);
+  }
+
+  // 날짜 필터
+  rows = rows.filter(function(r) {
+    var d = r['일자'] || '';
+    return d >= dateFrom && d <= dateTo;
+  });
+
+  // Meta 매체 선택 여부 확인
+  var ck = chKeys();
+  var metaSelected = ck.indexOf('all') !== -1 || ck.indexOf('meta') !== -1;
+
+  if (!metaSelected || rows.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  period.textContent = dateFrom.replace(/-/g,'.') + ' — ' + dateTo.replace(/-/g,'.');
+
+  // 계층 구조 생성: {캠페인명: {cost, groups: {그룹명: {cost, ads: {소재명: {cost, thumbnail}}}}}}
+  var hier = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var camp  = r['캠페인명']  || '(미분류)';
+    var grp   = r['광고그룹명'] || '(미분류)';
+    var adId  = r['광고소재 ID'] || r['광고소재명'] || '(미분류)';  // ID를 키로
+    var adName = r['광고소재명'] || '(미분류)';                       // 이름은 표시용
+    var thumb = r['이미지 URL'] || '';
+    var cost  = Number(r['총비용(vat-)']) || 0;
+    var conv  = Number(r['구매완료 전환수']) || 0;
+    var rev   = Number(r['구매완료 매출액']) || 0;
+    var impr  = Number(r['노출수']) || 0;
+    var click = Number(r['클릭수']) || 0;
+
+    if (!hier[camp]) hier[camp] = {cost:0, conv:0, rev:0, impr:0, click:0, groups:{}};
+    hier[camp].cost += cost; hier[camp].conv += conv; hier[camp].rev += rev; hier[camp].impr += impr; hier[camp].click += click;
+
+    if (!hier[camp].groups[grp]) hier[camp].groups[grp] = {cost:0, conv:0, rev:0, impr:0, click:0, ads:{}};
+    hier[camp].groups[grp].cost += cost; hier[camp].groups[grp].conv += conv; hier[camp].groups[grp].rev += rev; hier[camp].groups[grp].impr += impr; hier[camp].groups[grp].click += click;
+
+    if (!hier[camp].groups[grp].ads[adId]) hier[camp].groups[grp].ads[adId] = {name:adName, cost:0, conv:0, rev:0, impr:0, click:0, thumb:thumb};
+    hier[camp].groups[grp].ads[adId].cost  += cost;
+    hier[camp].groups[grp].ads[adId].conv  += conv;
+    hier[camp].groups[grp].ads[adId].rev   += rev;
+    hier[camp].groups[grp].ads[adId].impr  += impr;
+    hier[camp].groups[grp].ads[adId].click += click;
+    if (!hier[camp].groups[grp].ads[adId].thumb && thumb) hier[camp].groups[grp].ads[adId].thumb = thumb;
+  }
+
+  var fmtW = function(n){ return '₩' + Math.round(n).toLocaleString('ko-KR'); };
+  var fmtN = function(n){ return Math.round(n).toLocaleString('ko-KR'); };
+  var fmtR = function(cost, rev){ return cost > 0 ? Math.round(rev/cost*100) + '%' : '-'; };
+
+  var styleBase = 'font-family:"Noto Sans KR",sans-serif;font-size:12px;color:var(--text)';
+  var styleMuted = 'font-family:"Noto Sans KR",sans-serif;font-size:11px;color:#3a4150';
+  var styleNum = 'font-family:"Inter",sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text)';
+
+  // 헤더
+  var html = '<table style="width:100%;border-collapse:collapse">';
+  var thS = 'padding:9px 14px;font-family:"Inter",sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;text-align:right';
+  html += '<thead><tr>';
+  html += '<th style="' + thS + ';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:2">캠페인 / 그룹 / 소재</th>';
+  html += '<th style="' + thS + '">비용</th>';
+  html += '<th style="' + thS + '">매출</th>';
+  html += '<th style="' + thS + '">ROAS</th>';
+  html += '<th style="' + thS + '">전환수</th>';
+  html += '<th style="' + thS + '">클릭</th>';
+  html += '<th style="' + thS + '">노출</th>';
+  html += '</tr></thead><tbody>';
+
+  var camps = Object.keys(hier).sort(function(a,b){ return hier[b].cost - hier[a].cost; });
+  for (var ci = 0; ci < camps.length; ci++) {
+    var cn = camps[ci]; var cd = hier[cn];
+    var cExp = !!metaExpandedCamps[cn];
+
+    // 캠페인 행
+    html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="toggleMetaCamp(\'' + cn.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">';
+    html += '<td style="padding:10px 14px;' + styleBase + ';font-weight:500;position:sticky;left:0;background:var(--bg2);z-index:1">';
+    html += '<span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">' + (cExp ? '▼' : '▶') + '</span>' + cn + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtW(cd.cost) + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtW(cd.rev) + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtR(cd.cost, cd.rev) + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.conv) + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.click) + '</td>';
+    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.impr) + '</td>';
+    html += '</tr>';
+
+    if (!cExp) continue;
+
+    var grps = Object.keys(cd.groups).sort(function(a,b){ return cd.groups[b].cost - cd.groups[a].cost; });
+    for (var gi = 0; gi < grps.length; gi++) {
+      var gn = grps[gi]; var gd = cd.groups[gn];
+      var gKey = cn + '__' + gn;
+      var gExp = !!metaExpandedGroups[gKey];
+
+      // 그룹 행
+      html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);cursor:pointer" onclick="event.stopPropagation();toggleMetaGroup(\'' + gKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">';
+      html += '<td style="padding:7px 14px 7px 30px;' + styleMuted + ';position:sticky;left:0;background:rgba(245,246,248,1);z-index:1">';
+      html += '<span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">' + (gExp ? '▼' : '▶') + '</span>' + gn + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtW(gd.cost) + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtW(gd.rev) + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtR(gd.cost, gd.rev) + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.conv) + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.click) + '</td>';
+      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.impr) + '</td>';
+      html += '</tr>';
+
+      if (!gExp) continue;
+
+      var ads = Object.keys(gd.ads).sort(function(a,b){ return gd.ads[b].cost - gd.ads[a].cost; });
+      for (var ai = 0; ai < ads.length; ai++) {
+        var an = ads[ai]; var ad = gd.ads[an];
+
+        // 소재 행
+        html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()">';
+        html += '<td style="padding:8px 14px 8px 50px;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">';
+        html += '<div style="display:flex;align-items:center;gap:12px">';
+        if (ad.thumb) {
+          html += '<img src="' + ad.thumb + '" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;cursor:zoom-in" onclick="event.stopPropagation();openImgModal(\'' + ad.thumb.replace(/'/g, "\\'") + '\')" onerror="this.style.display=\'none\'">';
+        } else {
+          html += '<div style="width:160px;height:160px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">🖼</div>';
+        }
+        html += '<span style="font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568">◦ ' + ad.name + '</span>';
+        html += '</div></td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtW(ad.cost) + '</td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtW(ad.rev) + '</td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtR(ad.cost, ad.rev) + '</td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.conv) + '</td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.click) + '</td>';
+        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.impr) + '</td>';
+        html += '</tr>';
+      }
+    }
+  }
+
+  html += '</tbody></table>';
+  tree.innerHTML = html;
+}
+
+function openImgModal(url) {
+  var modal = document.getElementById('imgModal');
+  var img   = document.getElementById('imgModalImg');
+  if (!modal || !img || !url) return;
+  img.src = url;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImgModal() {
+  var modal = document.getElementById('imgModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeImgModal();
+});
+
 function sortCampTable(key) {
   if (campTableSort.key === key) {
     campTableSort.asc = !campTableSort.asc;
@@ -2548,6 +2747,7 @@ function render() {
   renderChart(cm, ck);
   renderTable(cm, ck);
   renderCampaignTable();
+  renderMetaCreatives();
 }
 
 function setBrand(btn) {
@@ -3252,5 +3452,10 @@ buildBudgetPeriodSelector();
 restoreDateRange();
 renderWithData();
 </script>
+<!-- 이미지 모달 -->
+<div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out" onclick="closeImgModal()">
+  <img id="imgModalImg" src="" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+</div>
+
 </body>
 </html>
