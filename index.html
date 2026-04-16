@@ -2455,8 +2455,8 @@ function renderMetaCreatives() {
     var r = rows[i];
     var camp  = r['캠페인명']  || '(미분류)';
     var grp   = r['광고그룹명'] || '(미분류)';
-    var adId  = r['광고소재 ID'] || r['광고소재명'] || '(미분류)';  // ID를 키로
-    var adName = r['광고소재명'] || '(미분류)';                       // 이름은 표시용
+    var adId  = r['광고소재 ID'] || r['광고소재'] || '(미분류)';  // ID를 키로
+    var adName = r['광고소재'] || '(미분류)';                       // 이름은 표시용
     var thumb = r['이미지 URL'] || '';
     var cost  = Number(r['총비용(vat-)']) || 0;
     var conv  = Number(r['구매완료 전환수']) || 0;
@@ -2491,14 +2491,39 @@ function renderMetaCreatives() {
   var html = '<table style="width:100%;border-collapse:collapse">';
   var thS = 'padding:9px 14px;font-family:"Inter",sans-serif;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;text-align:right';
   html += '<thead><tr>';
+  var META_TREE_COLS = TABLE_COLS; // 매체별 데이터와 동일한 컬럼
+
   html += '<th style="' + thS + ';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:2">캠페인 / 그룹 / 소재</th>';
-  html += '<th style="' + thS + '">비용</th>';
-  html += '<th style="' + thS + '">매출</th>';
-  html += '<th style="' + thS + '">ROAS</th>';
-  html += '<th style="' + thS + '">전환수</th>';
-  html += '<th style="' + thS + '">클릭</th>';
-  html += '<th style="' + thS + '">노출</th>';
+  for (var ci2 = 0; ci2 < META_TREE_COLS.length; ci2++) {
+    html += '<th style="' + thS + '">' + META_TREE_COLS[ci2].label + '</th>';
+  }
   html += '</tr></thead><tbody>';
+
+  function metaCalc(d) {
+    return {
+      cost:        d.cost,
+      revenue:     d.rev,
+      roas:        d.cost > 0 ? d.rev / d.cost : 0,
+      conversions: d.conv,
+      cpa:         d.conv > 0 ? d.cost / d.conv : 0,
+      cvr:         d.click > 0 ? d.conv / d.click : 0,
+      clicks:      d.click,
+      cpc:         d.click > 0 ? d.cost / d.click : 0,
+      ctr:         d.impr > 0 ? d.click / d.impr : 0,
+      impressions: d.impr,
+      cpm:         d.impr > 0 ? d.cost / d.impr * 1000 : 0
+    };
+  }
+
+  function metaTd(val, type, pad) {
+    return '<td style="padding:' + (pad||'10px 14px') + ';text-align:right;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text)">' + fmt(val, type) + '</td>';
+  }
+  function metaTdMuted(val, type, pad) {
+    return '<td style="padding:' + (pad||'7px 14px') + ';text-align:right;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#374151">' + fmt(val, type) + '</td>';
+  }
+  function metaTdCreative(val, type) {
+    return '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#4a5568">' + fmt(val, type) + '</td>';
+  }
 
   var camps = Object.keys(hier).sort(function(a,b){ return hier[b].cost - hier[a].cost; });
   for (var ci = 0; ci < camps.length; ci++) {
@@ -2509,12 +2534,8 @@ function renderMetaCreatives() {
     html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="toggleMetaCamp(\'' + cn.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">';
     html += '<td style="padding:10px 14px;' + styleBase + ';font-weight:500;position:sticky;left:0;background:var(--bg2);z-index:1">';
     html += '<span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">' + (cExp ? '▼' : '▶') + '</span>' + cn + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtW(cd.cost) + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtW(cd.rev) + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtR(cd.cost, cd.rev) + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.conv) + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.click) + '</td>';
-    html += '<td style="padding:10px 14px;text-align:right;' + styleNum + '">' + fmtN(cd.impr) + '</td>';
+    var cCalc = metaCalc(cd);
+    for (var ci2 = 0; ci2 < META_TREE_COLS.length; ci2++) html += metaTd(cCalc[META_TREE_COLS[ci2].key], META_TREE_COLS[ci2].type);
     html += '</tr>';
 
     if (!cExp) continue;
@@ -2529,12 +2550,8 @@ function renderMetaCreatives() {
       html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);cursor:pointer" onclick="event.stopPropagation();toggleMetaGroup(\'' + gKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">';
       html += '<td style="padding:7px 14px 7px 30px;' + styleMuted + ';position:sticky;left:0;background:rgba(245,246,248,1);z-index:1">';
       html += '<span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">' + (gExp ? '▼' : '▶') + '</span>' + gn + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtW(gd.cost) + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtW(gd.rev) + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtR(gd.cost, gd.rev) + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.conv) + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.click) + '</td>';
-      html += '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">' + fmtN(gd.impr) + '</td>';
+      var gCalc = metaCalc(gd);
+      for (var ci2 = 0; ci2 < META_TREE_COLS.length; ci2++) html += metaTdMuted(gCalc[META_TREE_COLS[ci2].key], META_TREE_COLS[ci2].type);
       html += '</tr>';
 
       if (!gExp) continue;
@@ -2554,12 +2571,8 @@ function renderMetaCreatives() {
         }
         html += '<span style="font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568">◦ ' + ad.name + '</span>';
         html += '</div></td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtW(ad.cost) + '</td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtW(ad.rev) + '</td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtR(ad.cost, ad.rev) + '</td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.conv) + '</td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.click) + '</td>';
-        html += '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">' + fmtN(ad.impr) + '</td>';
+        var adCalc = metaCalc(ad);
+        for (var ci2 = 0; ci2 < META_TREE_COLS.length; ci2++) html += metaTdCreative(adCalc[META_TREE_COLS[ci2].key], META_TREE_COLS[ci2].type);
         html += '</tr>';
       }
     }
