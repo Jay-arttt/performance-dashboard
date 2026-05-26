@@ -405,9 +405,10 @@ var CSV_URLS = {
 };
 
 var CSV_URLS_MINOXELL = {
-  nsa:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=688098510&single=true&output=csv',
-  meta: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1964641815&single=true&output=csv',
-  ngfa: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1678752996&single=true&output=csv'
+  nsa:          'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=688098510&single=true&output=csv',
+  meta:         'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1964641815&single=true&output=csv',
+  ngfa:         'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1678752996&single=true&output=csv',
+  oliveyoung_meta: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1885821185&single=true&output=csv'
 };
 
 var CSV_URLS_HYPER = {
@@ -591,13 +592,15 @@ function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
   } else if (sheetsCache.minoxell && (brKey === 'minoxell' || brKey === 'oliveyoung')) {
     var pm = sheetsCache.minoxell;
     var nsaHM  = aggregateNSAHierarchy(pm._rawNSA || [], dateFrom, dateTo);
-    var metaHM = aggregateGenericHierarchy(pm._rawMeta || [], dateFrom, dateTo, '광고소재');
-    var gfaHM  = aggregateGFAHierarchy(pm._rawNGFA || [], dateFrom, dateTo);
+    var metaHM  = aggregateGenericHierarchy(pm._rawMeta   || [], dateFrom, dateTo, '광고소재');
+    var oyMetaHM = aggregateGenericHierarchy(pm._rawOYMeta || [], dateFrom, dateTo, '광고소재');
+    var gfaHM   = aggregateGFAHierarchy(pm._rawNGFA || [], dateFrom, dateTo);
     if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaHM.nsa;
     if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaHM.nbsa;
     if (brKey === 'minoxell'   && chKey === 'nnsa') result = nsaHM.nnsa;
     if (brKey === 'minoxell'   && chKey === 'meta') result = metaHM;
     if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaHM.minoxell;
+    if (brKey === 'oliveyoung' && chKey === 'meta') result = oyMetaHM;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaHM.oliveyoung;
   } else if (sheetsCache.hyper) {
     var ph = sheetsCache.hyper;
@@ -1077,24 +1080,28 @@ function loadMinoxell(callback) {
   Promise.all([
     fetch(CSV_URLS_MINOXELL.nsa).then(function(r){ return r.text(); }),
     fetch(CSV_URLS_MINOXELL.meta).then(function(r){ return r.text(); }),
-    fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); })
+    fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); }),
+    fetch(CSV_URLS_MINOXELL.oliveyoung_meta).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
-    var nsaRows2   = parseCSV(results[0]);
-    var metaRows2  = parseCSV(results[1]);
-    var ngfaRows2  = parseCSV(results[2]);
-    var nsaResult2 = aggregateNSA(nsaRows2);
-    var gfaResult  = aggregateGFA(ngfaRows2);
+    var nsaRows2        = parseCSV(results[0]);
+    var metaRows2       = parseCSV(results[1]);
+    var ngfaRows2       = parseCSV(results[2]);
+    var oyMetaRows      = parseCSV(results[3]);
+    var nsaResult2      = aggregateNSA(nsaRows2);
+    var gfaResult       = aggregateGFA(ngfaRows2);
     var parsed = {
-      nsa:             nsaResult2.nsa,
-      nbsa:            nsaResult2.nbsa,
-      nnsa:            nsaResult2.nnsa,
-      meta:            aggregateGeneric(metaRows2),
-      ngfa:            gfaResult.minoxell,
-      oliveyoung_ngfa: gfaResult.oliveyoung,
-      _rawNSA:         nsaRows2,
-      _rawMeta:        metaRows2,
-      _rawNGFA:        ngfaRows2
+      nsa:              nsaResult2.nsa,
+      nbsa:             nsaResult2.nbsa,
+      nnsa:             nsaResult2.nnsa,
+      meta:             aggregateGeneric(metaRows2),
+      ngfa:             gfaResult.minoxell,
+      oliveyoung_ngfa:  gfaResult.oliveyoung,
+      oliveyoung_meta:  aggregateGeneric(oyMetaRows),
+      _rawNSA:          nsaRows2,
+      _rawMeta:         metaRows2,
+      _rawNGFA:         ngfaRows2,
+      _rawOYMeta:       oyMetaRows
     };
     sheetsCache.minoxell = parsed;
     showLoading(false);
@@ -1137,7 +1144,7 @@ function applyMinoxell(apiData, dateFrom, dateTo) {
     ngfa:   sumByDateRange(apiData.ngfa,        dateFrom, dateTo)
   };
   RAW.oliveyoung = {
-    meta:   RAW.oliveyoung ? RAW.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+    meta:   sumByDateRange(apiData.oliveyoung_meta || {}, dateFrom, dateTo),
     ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
   };
   PREV.minoxell = {
@@ -1148,7 +1155,7 @@ function applyMinoxell(apiData, dateFrom, dateTo) {
     ngfa:   sumByDateRange(apiData.ngfa,        prevRange.from, prevRange.to)
   };
   PREV.oliveyoung = {
-    meta:   PREV.oliveyoung ? PREV.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
+    meta:   sumByDateRange(apiData.oliveyoung_meta || {}, prevRange.from, prevRange.to),
     ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to)
   };
 }
@@ -2445,7 +2452,8 @@ function renderMetaCreatives() {
     if (bk[bi].indexOf('skechers') !== -1 && sheetsCache.skechers) cache = sheetsCache.skechers;
     else if ((bk[bi] === 'minoxell' || bk[bi] === 'oliveyoung') && sheetsCache.minoxell) cache = sheetsCache.minoxell;
     else if (bk[bi] === 'careerbud' && sheetsCache.careerbud) cache = sheetsCache.careerbud;
-    if (cache && cache._rawMeta) rows = rows.concat(cache._rawMeta);
+    if (cache && cache._rawMeta)   rows = rows.concat(cache._rawMeta);
+    if (cache && cache._rawOYMeta) rows = rows.concat(cache._rawOYMeta);
   }
 
   // 날짜 필터
@@ -3269,6 +3277,7 @@ function _renderBudgetBars(ym, budgets) {
             if (sub.key === 'minoxell'   && chKey === 'meta') byDateMap3 = pm2.meta;
             if (sub.key === 'minoxell'   && chKey === 'ngfa') byDateMap3 = pm2.ngfa;
             if (sub.key === 'oliveyoung' && chKey === 'ngfa') byDateMap3 = pm2.oliveyoung_ngfa;
+            if (sub.key === 'oliveyoung' && chKey === 'meta') byDateMap3 = pm2.oliveyoung_meta;
             spent = sumByDateRange(byDateMap3 || {}, budgetDateFrom, budgetDateTo).cost || 0;
           } else if (sheetsCache.hyper) {
             var hyperKey = sub.key + '__' + chKey;
