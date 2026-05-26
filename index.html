@@ -1181,10 +1181,21 @@ function renderWithData() {
 
   if (!needsSkechers && !needsMinoxell && !needsHyper) { render(); return; }
 
+  // 캐시가 이미 있으면 fetch 없이 재집계만
+  if (needsSkechers && sheetsCache.skechers) applySkechers(sheetsCache.skechers, dateFrom, dateTo);
+  if (needsMinoxell && sheetsCache.minoxell) applyMinoxell(sheetsCache.minoxell, dateFrom, dateTo);
+  if (needsHyper    && sheetsCache.hyper)    applyHyper(sheetsCache.hyper, dateFrom, dateTo);
+
+  var hasCachedAll = (!needsSkechers || sheetsCache.skechers) &&
+                     (!needsMinoxell || sheetsCache.minoxell) &&
+                     (!needsHyper    || sheetsCache.hyper);
+  if (hasCachedAll) { render(); return; }
+
+  // 캐시 없는 것만 fetch
   var tasks = [];
-  if (needsSkechers) tasks.push(new Promise(function(res) { loadSkechers(function(d){ applySkechers(d, dateFrom, dateTo); res(); }); }));
-  if (needsMinoxell) tasks.push(new Promise(function(res) { loadMinoxell(function(d){ applyMinoxell(d, dateFrom, dateTo); res(); }); }));
-  if (needsHyper)    tasks.push(new Promise(function(res) { loadHyper(function(d){ applyHyper(d, dateFrom, dateTo); res(); }); }));
+  if (needsSkechers && !sheetsCache.skechers) tasks.push(new Promise(function(res) { loadSkechers(function(d){ applySkechers(d, dateFrom, dateTo); res(); }); }));
+  if (needsMinoxell && !sheetsCache.minoxell) tasks.push(new Promise(function(res) { loadMinoxell(function(d){ applyMinoxell(d, dateFrom, dateTo); res(); }); }));
+  if (needsHyper    && !sheetsCache.hyper)    tasks.push(new Promise(function(res) { loadHyper(function(d){ applyHyper(d, dateFrom, dateTo); res(); }); }));
 
   Promise.all(tasks).then(function() { render(); });
 }
@@ -2858,7 +2869,7 @@ function setThisMonth(btn) {
   document.getElementById('dateTo').value   = to;
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2878,7 +2889,7 @@ function setLastMonth(btn) {
   document.getElementById('dateTo').value   = lastY + '-' + pad(lastM + 1) + '-' + pad(lastDay);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2923,7 +2934,7 @@ function setLastWeek(btn) {
   document.getElementById('dateTo').value   = lastSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2938,7 +2949,7 @@ function setYesterday(btn) {
   document.getElementById('dateTo').value   = d;
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2960,7 +2971,7 @@ function setTwoWeeksAgo(btn) {
   document.getElementById('dateTo').value   = twoSunday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2976,7 +2987,7 @@ function setPreset(btn, days) {
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {};
+  campaignCache = {};
   renderWithData();
 }
 
@@ -2985,7 +2996,7 @@ function applyRange() {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
   saveDateRange();
-  sheetsCache.skechers = null; sheetsCache.minoxell = null; sheetsCache.hyper = null; campaignCache = {}; // 날짜 바뀌면 캐시 초기화
+  campaignCache = {}; // 날짜 바뀌면 캐시 초기화
   renderWithData();
 }
 
