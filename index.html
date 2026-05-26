@@ -21,6 +21,7 @@
   --ngfa: #00994a;
   --nsa: #0097b8;
   --nbsa: #7c5fc9;
+  --nnsa: #e07b39;
   --kakao: #c4a800;
   --google_app: #d9720f;
   --hyper: #7c5fc9;
@@ -93,6 +94,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 .ch-card[data-ch="ngfa"]::before { background: var(--ngfa); }
 .ch-card[data-ch="nsa"]::before { background: var(--nsa); }
 .ch-card[data-ch="nbsa"]::before { background: var(--nbsa); }
+.ch-card[data-ch="nnsa"]::before { background: var(--nnsa); }
 .ch-card[data-ch="kakao"]::before { background: var(--kakao); }
 .ch-card[data-ch="google_app"]::before { background: var(--google_app); }
 .ch-name { font-size: 12px; font-weight: 500; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
@@ -156,6 +158,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 .ch-pill.ngfa   { background: rgba(3,199,90,.15);    color: var(--ngfa); }
 .ch-pill.nsa    { background: rgba(0,180,216,.15);   color: var(--nsa); }
 .ch-pill.nbsa   { background: rgba(167,139,250,.15); color: var(--nbsa); }
+.ch-pill.nnsa   { background: rgba(224,123,57,.15);  color: var(--nnsa); }
 .ch-pill.kakao  { background: rgba(249,208,0,.15);   color: var(--kakao); }
 .ch-pill.google_app { background: rgba(251,146,60,.15); color: var(--google_app); }
 
@@ -284,6 +287,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
     <button class="tab" data-ch="ngfa" onclick="setCh(this)"><span class="dot" style="background:var(--ngfa)"></span>네이버 GFA</button>
     <button class="tab" data-ch="nsa" onclick="setCh(this)"><span class="dot" style="background:var(--nsa)"></span>네이버 SA</button>
     <button class="tab" data-ch="nbsa" onclick="setCh(this)"><span class="dot" style="background:var(--nbsa)"></span>네이버 BSA</button>
+    <button class="tab" data-ch="nnsa" onclick="setCh(this)"><span class="dot" style="background:var(--nsa)"></span>네이버 NSA</button>
   </div>
 </div>
 
@@ -450,18 +454,20 @@ function addToHierarchy(hier, camp, group, creative, dateStr, dateFrom, dateTo, 
 
 // NSA 계층 집계
 function aggregateNSAHierarchy(rows, dateFrom, dateTo) {
-  var nsa = {}, nbsa = {};
+  var nsa = {}, nbsa = {}, nnsa = {};
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     var dateStr = (r['일자'] || '').slice(0, 10);
     if (!dateStr) continue;
-    var isBSA = (r['캠페인유형'] || '').indexOf('브랜드검색') !== -1;
-    var target = isBSA ? nbsa : nsa;
+    var type   = r['캠페인유형'] || '';
+    var isBSA  = type.indexOf('브랜드검색') !== -1;
+    var isNNSA = type.indexOf('신제품검색') !== -1;
+    var target = isBSA ? nbsa : isNNSA ? nnsa : nsa;
     addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
       Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0,
       Number(r['장바구니 전환수'])||0, Number(r['장바구니 매출액'])||0);
   }
-  return {nsa: nsa, nbsa: nbsa};
+  return {nsa: nsa, nbsa: nbsa, nnsa: nnsa};
 }
 
 // 공통 계층 집계 (Meta, Google)
@@ -579,6 +585,7 @@ function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
     var googAppH = p._rawGoogle ? aggregateSkechersGoogleHierarchy(p._rawGoogle, dateFrom, dateTo, true)  : {};
     if (brKey === 'skechers_official' && chKey === 'nsa')    result = nsaH.nsa;
     if (brKey === 'skechers_official' && chKey === 'nbsa')   result = nsaH.nbsa;
+    if (brKey === 'skechers_official' && chKey === 'nnsa')   result = nsaH.nnsa;
     if (brKey === 'skechers_official' && chKey === 'google') result = googH;
     if (brKey === 'skechers_app'      && chKey === 'google') result = googAppH;
   } else if (sheetsCache.minoxell && (brKey === 'minoxell' || brKey === 'oliveyoung')) {
@@ -588,6 +595,7 @@ function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
     var gfaHM  = aggregateGFAHierarchy(pm._rawNGFA || [], dateFrom, dateTo);
     if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaHM.nsa;
     if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaHM.nbsa;
+    if (brKey === 'minoxell'   && chKey === 'nnsa') result = nsaHM.nnsa;
     if (brKey === 'minoxell'   && chKey === 'meta') result = metaHM;
     if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaHM.minoxell;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaHM.oliveyoung;
@@ -776,7 +784,7 @@ function parseCSV(text) {
 
 // CSV 행 → 날짜별 합산 (네이버SA) → {nsa, nbsa} 분리
 function aggregateNSA(rows) {
-  var nsa = {}, nbsa = {};
+  var nsa = {}, nbsa = {}, nnsa = {};
   var COL_DATE  = '일자';
   var COL_TYPE  = '캠페인유형';
   var COL_COST  = '총비용(vat-)';
@@ -789,8 +797,10 @@ function aggregateNSA(rows) {
     var r = rows[i];
     var dateStr = r[COL_DATE] ? r[COL_DATE].slice(0, 10) : '';
     if (!dateStr) continue;
-    var isBSA = (r[COL_TYPE] || '').indexOf('브랜드검색') !== -1;
-    var target = isBSA ? nbsa : nsa;
+    var type = r[COL_TYPE] || '';
+    var isBSA  = type.indexOf('브랜드검색') !== -1;
+    var isNNSA = type.indexOf('신제품검색') !== -1;
+    var target = isBSA ? nbsa : isNNSA ? nnsa : nsa;
     if (!target[dateStr]) target[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
     target[dateStr].cost        += Number(r[COL_COST])  || 0;
     target[dateStr].impressions += Number(r[COL_IMPR])  || 0;
@@ -798,7 +808,7 @@ function aggregateNSA(rows) {
     target[dateStr].conversions += Number(r[COL_CONV])  || 0;
     target[dateStr].revenue     += Number(r[COL_REV])   || 0;
   }
-  return {nsa: nsa, nbsa: nbsa};
+  return {nsa: nsa, nbsa: nbsa, nnsa: nnsa};
 }
 
 // CSV 행 → 날짜별 합산 (구글DA, mode: 'official' | 'app')
@@ -860,12 +870,14 @@ function buildSkechersRaw(parsed, dateFrom, dateTo) {
     skechers_official: {
       google: sumByDateRange(parsed.googleOfficial, dateFrom, dateTo),
       nsa:    sumByDateRange(parsed.nsa,            dateFrom, dateTo),
-      nbsa:   sumByDateRange(parsed.nbsa || {},     dateFrom, dateTo)
+      nbsa:   sumByDateRange(parsed.nbsa || {},     dateFrom, dateTo),
+      nnsa:   sumByDateRange(parsed.nnsa || {},     dateFrom, dateTo)
     },
     skechers_app: {
       google: sumByDateRange(parsed.googleApp, dateFrom, dateTo),
       nsa:    empty,
-      nbsa:   empty
+      nbsa:   empty,
+      nnsa:   empty
     }
   };
 }
@@ -993,6 +1005,7 @@ function loadSkechers(callback) {
       var parsed = {
         nsa:            nsaResult.nsa,
         nbsa:           nsaResult.nbsa,
+        nnsa:           nsaResult.nnsa,
         googleOfficial: aggregateGoogleDA(googleRows, 'official'),
         googleApp:      aggregateGoogleDA(googleRows, 'app'),
         _rawNSA:        nsaRows,
@@ -1075,6 +1088,7 @@ function loadMinoxell(callback) {
     var parsed = {
       nsa:             nsaResult2.nsa,
       nbsa:            nsaResult2.nbsa,
+      nnsa:            nsaResult2.nnsa,
       meta:            aggregateGeneric(metaRows2),
       ngfa:            gfaResult.minoxell,
       oliveyoung_ngfa: gfaResult.oliveyoung,
@@ -1116,20 +1130,22 @@ function applyMinoxell(apiData, dateFrom, dateTo) {
   if (!apiData) return;
   var prevRange = getPrevRange(dateFrom, dateTo);
   RAW.minoxell = {
-    meta:   sumByDateRange(apiData.meta,       dateFrom, dateTo),
-    nsa:    sumByDateRange(apiData.nsa,        dateFrom, dateTo),
-    nbsa:   sumByDateRange(apiData.nbsa || {}, dateFrom, dateTo),
-    ngfa:   sumByDateRange(apiData.ngfa,       dateFrom, dateTo)
+    meta:   sumByDateRange(apiData.meta,        dateFrom, dateTo),
+    nsa:    sumByDateRange(apiData.nsa,         dateFrom, dateTo),
+    nbsa:   sumByDateRange(apiData.nbsa  || {}, dateFrom, dateTo),
+    nnsa:   sumByDateRange(apiData.nnsa  || {}, dateFrom, dateTo),
+    ngfa:   sumByDateRange(apiData.ngfa,        dateFrom, dateTo)
   };
   RAW.oliveyoung = {
     meta:   RAW.oliveyoung ? RAW.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
     ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
   };
   PREV.minoxell = {
-    meta:   sumByDateRange(apiData.meta,       prevRange.from, prevRange.to),
-    nsa:    sumByDateRange(apiData.nsa,        prevRange.from, prevRange.to),
-    nbsa:   sumByDateRange(apiData.nbsa || {}, prevRange.from, prevRange.to),
-    ngfa:   sumByDateRange(apiData.ngfa,       prevRange.from, prevRange.to)
+    meta:   sumByDateRange(apiData.meta,        prevRange.from, prevRange.to),
+    nsa:    sumByDateRange(apiData.nsa,         prevRange.from, prevRange.to),
+    nbsa:   sumByDateRange(apiData.nbsa  || {}, prevRange.from, prevRange.to),
+    nnsa:   sumByDateRange(apiData.nnsa  || {}, prevRange.from, prevRange.to),
+    ngfa:   sumByDateRange(apiData.ngfa,        prevRange.from, prevRange.to)
   };
   PREV.oliveyoung = {
     meta:   PREV.oliveyoung ? PREV.oliveyoung.meta : {cost:0, revenue:0, clicks:0, impressions:0, conversions:0},
@@ -1200,11 +1216,11 @@ var HYPER_SUBS     = ['kitchenaid', 'ecovacs', 'anova'];
 var SKECHERS_SUBS  = ['skechers_official', 'skechers_app'];
 var MYNOXCEL_SUBS  = ['minoxell', 'oliveyoung'];
 var ALL_BRANDS = ['skechers_official', 'skechers_app', 'minoxell', 'oliveyoung', 'careerbud', 'kitchenaid', 'ecovacs', 'anova'];
-var CHS = ['meta', 'google', 'kakao', 'ngfa', 'nsa', 'nbsa'];
-var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버 GFA', nsa: '네이버 SA', nbsa: '네이버 BSA'};
-var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', kakao: 'var(--kakao)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)', nbsa: 'var(--nbsa)'};
+var CHS = ['meta', 'google', 'kakao', 'ngfa', 'nsa', 'nbsa', 'nnsa'];
+var CH_NAME  = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: '네이버 GFA', nsa: '네이버 SA', nbsa: '네이버 BSA', nnsa: '네이버 NSA'};
+var CH_COLOR = {meta: 'var(--meta)', google: 'var(--google)', kakao: 'var(--kakao)', ngfa: 'var(--ngfa)', nsa: 'var(--nsa)', nbsa: 'var(--nbsa)', nnsa: 'var(--nnsa)'};
 var CH_HEX   = {meta: '#4f8ef7', google: '#f4a044', kakao: '#f9d000', ngfa: '#03c75a', nsa: '#00b4d8', nbsa: '#a78bfa'};
-var CH_SHORT = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: 'N.GFA', nsa: 'N.SA', nbsa: 'N.BSA'};
+var CH_SHORT = {meta: 'Meta', google: 'Google', kakao: 'Kakao', ngfa: 'N.GFA', nsa: 'N.SA', nbsa: 'N.BSA', nnsa: 'N.NSA'};
 
 var CHART_METRICS = [
   {key: 'cost',        label: '비용',   type: 'won',  color: '#4f8ef7'},
@@ -2978,7 +2994,7 @@ var budgetCache = {}; // { allData: [...rows], parsed: {ym: {key: budget}} }
 
 // 시트 매체명 → 대시보드 채널키 매핑
 var BUDGET_CH_MAP = {
-  'N.BSA': 'nbsa', 'N.SA': 'nsa', 'N.GFA': 'ngfa',
+  'N.BSA': 'nbsa', 'N.SA': 'nsa', 'N.NSA': 'nnsa', 'N.GFA': 'ngfa',
   'Meta': 'meta', 'Google': 'google', 'Kakao': 'kakao'
 };
 
@@ -2987,6 +3003,7 @@ var BUDGET_CH_MAP = {
 var BUDGET_BRAND_MAP = [
   {brand:'마이녹셀',  sub:'',          ch:'N.BSA', key:'minoxell__nbsa'},
   {brand:'마이녹셀',  sub:'',          ch:'N.SA',  key:'minoxell__nsa'},
+  {brand:'마이녹셀',  sub:'',          ch:'N.NSA', key:'minoxell__nnsa'},
   {brand:'마이녹셀',  sub:'',          ch:'N.GFA', key:'minoxell__ngfa'},
   {brand:'마이녹셀',  sub:'',          ch:'Meta',  key:'minoxell__meta'},
   {brand:'마이녹셀',  sub:'올리브영',  ch:'Meta',  key:'oliveyoung__meta'},
@@ -3009,7 +3026,11 @@ var BUDGET_BRAND_MAP = [
 ];
 
 // 예산 기간 상태
-var budgetPeriod = {year: '2026', month: '03'};
+var _now = new Date();
+var budgetPeriod = {
+  year:  String(_now.getFullYear()),
+  month: String(_now.getMonth() + 1).padStart(2, '0')
+};
 
 function buildBudgetPeriodSelector() {
   // 연도: 하드코딩 or 동적
@@ -3183,7 +3204,7 @@ function _renderBudgetBars(ym, budgets) {
         { label:'앱',     key:'skechers_app',      chs:['kakao','google'] }
       ]},
       { brand:'마이녹셀', subs:[
-        { label:'마이녹셀', key:'minoxell',    chs:['meta','nbsa','nsa','ngfa'] },
+        { label:'마이녹셀', key:'minoxell',    chs:['meta','nbsa','nsa','nnsa','ngfa'] },
         { label:'올리브영', key:'oliveyoung',  chs:['meta','ngfa'] }
       ]},
       { brand:'커리어벗', subs:[
@@ -3244,6 +3265,7 @@ function _renderBudgetBars(ym, budgets) {
             var byDateMap3 = null;
             if (sub.key === 'minoxell'   && chKey === 'nsa')  byDateMap3 = pm2.nsa;
             if (sub.key === 'minoxell'   && chKey === 'nbsa') byDateMap3 = pm2.nbsa;
+            if (sub.key === 'minoxell'   && chKey === 'nnsa') byDateMap3 = pm2.nnsa;
             if (sub.key === 'minoxell'   && chKey === 'meta') byDateMap3 = pm2.meta;
             if (sub.key === 'minoxell'   && chKey === 'ngfa') byDateMap3 = pm2.ngfa;
             if (sub.key === 'oliveyoung' && chKey === 'ngfa') byDateMap3 = pm2.oliveyoung_ngfa;
