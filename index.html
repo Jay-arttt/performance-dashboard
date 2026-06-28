@@ -504,7 +504,7 @@ function aggregateGenericHierarchy(rows, dateFrom, dateTo, creativeCol) {
     if (!dateStr) continue;
     var creative = creativeCol ? (r[creativeCol] || '') : null;
     addToHierarchy(out, r['캠페인명']||'(미분류)', r['광고그룹명']||'', creative, dateStr, dateFrom, dateTo,
-      Number(r['총비용(vat-)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
+      Number(r['총비용(마크업 포함)'])||0, Number(r['노출수'])||0, Number(r['클릭수'])||0, Number(r['구매완료 전환수'])||0, Number(r['구매완료 매출액'])||0);
   }
   return out;
 }
@@ -1053,7 +1053,7 @@ function loadSkechers(callback) {
 function aggregateGeneric(rows) {
   var byDate = {};
   var COL_DATE = '일자';
-  var COL_COST = '총비용(vat-)';
+  var COL_COST = '총비용(마크업 포함)';
   var COL_IMPR = '노출수';
   var COL_CLICK = '클릭수';
   var COL_CONV = '구매완료 전환수';
