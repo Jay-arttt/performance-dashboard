@@ -3541,13 +3541,18 @@ function _renderBudgetBars(ym, budgets) {
     var budgetDateTo   = ym + '-' + (mDays2 < 10 ? '0' + mDays2 : '' + mDays2);
 
     // 브랜드 × 매체별 수수료율 (예산 현황 전용)
-    // 마이녹셀/올리브영 Meta는 '총비용(마크업 포함)' 컬럼을 쓰므로 이미 마크업 포함 → 추가 수수료 적용 안 함
+    // 마이녹셀/올리브영 Meta는 '총비용(마크업 포함)' 컬럼을 쓰므로 이미 마크업 포함 → 소진액 계산에는 추가 수수료 적용 안 함
     var FEE_RATES = {
       'skechers_official__google': 0.15,
       'skechers_app__google':      0.15,
       'careerbud__google':         0.183,
       'careerbud__meta':           0.183
     };
+    // 소진 목표액(일, 수수료 제외) 컬럼에서만 사용 (마이녹셀/올리브영 Meta는 18.3% 마크업 제외해서 표시)
+    var NET_FEE_RATES = Object.assign({}, FEE_RATES, {
+      'minoxell__meta':   0.183,
+      'oliveyoung__meta': 0.183
+    });
 
     for (var si = 0; si < BUDGET_STRUCTURE.length; si++) {
       var brandGroup = BUDGET_STRUCTURE[si];
@@ -3758,7 +3763,7 @@ function _renderBudgetBars(ym, budgets) {
 
       // 수수료 제외 소진 목표액(일)
       var netDailyGoal = dailyGoal;
-      var feeR = FEE_RATES[r.storageKey] || 0;
+      var feeR = NET_FEE_RATES[r.storageKey] || 0;
       if (feeR > 0) netDailyGoal = Math.round(dailyGoal / (1 + feeR));
       html += '<td style="padding:11px 16px;text-align:right;color:' + (netDailyGoal < 0 ? 'var(--down)' : 'var(--muted)') + '">' + (remainDays > 0 ? '₩' + netDailyGoal.toLocaleString('ko-KR') : '-') + '</td>';
 
