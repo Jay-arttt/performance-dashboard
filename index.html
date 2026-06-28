@@ -1307,6 +1307,7 @@ function getDayData(brKey, chKey, dateStr) {
     var byDate = null;
     if (brKey === 'skechers_official' && chKey === 'nsa')    byDate = p.nsa;
     if (brKey === 'skechers_official' && chKey === 'nbsa')   byDate = p.nbsa;
+    if (brKey === 'skechers_official' && chKey === 'nnsa')   byDate = p.nnsa;
     if (brKey === 'skechers_official' && chKey === 'google') byDate = p.googleOfficial;
     if (brKey === 'skechers_app'      && chKey === 'google') byDate = p.googleApp;
     if (byDate && byDate[dateStr]) return byDate[dateStr];
@@ -1318,9 +1319,11 @@ function getDayData(brKey, chKey, dateStr) {
     var byDateM = null;
     if (brKey === 'minoxell' && chKey === 'nsa')  byDateM = pm.nsa;
     if (brKey === 'minoxell' && chKey === 'nbsa') byDateM = pm.nbsa;
+    if (brKey === 'minoxell' && chKey === 'nnsa') byDateM = pm.nnsa;
     if (brKey === 'minoxell' && chKey === 'meta') byDateM = pm.meta;
     if (brKey === 'minoxell' && chKey === 'ngfa') byDateM = pm.ngfa;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') byDateM = pm.oliveyoung_ngfa;
+    if (brKey === 'oliveyoung' && chKey === 'meta') byDateM = pm.oliveyoung_meta;
     if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
     if (byDateM) return empty;
   }
