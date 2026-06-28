@@ -3541,17 +3541,10 @@ function _renderBudgetBars(ym, budgets) {
     var budgetDateTo   = ym + '-' + (mDays2 < 10 ? '0' + mDays2 : '' + mDays2);
 
     // 브랜드 × 매체별 수수료율 (예산 현황 전용)
-    // 마이녹셀 메타 수수료: 2026년 3월부터 18.3%, 1~2월은 15%
-    var minoxellMetaFee = 0.183;
-    if (budgetPeriod.year === '2026' && parseInt(budgetPeriod.month, 10) <= 2) {
-      minoxellMetaFee = 0.15;
-    }
-
+    // 마이녹셀/올리브영 Meta는 '총비용(마크업 포함)' 컬럼을 쓰므로 이미 마크업 포함 → 추가 수수료 적용 안 함
     var FEE_RATES = {
       'skechers_official__google': 0.15,
       'skechers_app__google':      0.15,
-      'minoxell__meta':            minoxellMetaFee,
-      'oliveyoung__meta':          0.183,
       'careerbud__google':         0.183,
       'careerbud__meta':           0.183
     };
