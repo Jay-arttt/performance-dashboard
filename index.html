@@ -234,11 +234,13 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
       <button class="date-btn active" onclick="setPreset(this,30)">30일</button>
       <button class="date-btn" onclick="setPreset(this,90)">90일</button>
     </div>
+    <button class="date-btn" onclick="shiftDateRange(-1)" style="padding:6px 10px;border-radius:8px" title="이전 기간">◀</button>
     <div class="date-input-wrap">
       <input type="date" id="dateFrom" value="2026-02-22">
       <span class="date-sep">—</span>
       <input type="date" id="dateTo" value="2026-03-24">
     </div>
+    <button class="date-btn" onclick="shiftDateRange(1)" style="padding:6px 10px;border-radius:8px" title="다음 기간">▶</button>
     <button class="apply-btn" onclick="applyRange()">적용</button>
   </div>
 </div>
@@ -326,6 +328,18 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
+
+<div class="table-section" style="margin-bottom:16px">
+  <div class="table-header">
+    <span>일자별 데이터</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table id="dailyTable">
+      <thead><tr id="dailyTableHead"></tr></thead>
+      <tbody id="dailyTbody"></tbody>
+    </table>
+  </div>
+</div>
 
 <div class="table-section">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -1743,23 +1757,90 @@ function renderChart(cm, ck) {
     var dashAttr = isPrevSeries ? ' stroke-dasharray="4,3"' : '';
     svg += '<path d="' + lD + '" fill="none" stroke="' + col + '" stroke-width="0.5"' + dashAttr + ' stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // Dots
+    // 일반 점 (호버 하이라이트는 별도 오버레이로 처리)
     var showDots = N <= 31;
-    var mLabel = series[si].meta.label;
-    var mType  = series[si].meta.type;
-    var mVals  = series[si].values;
-    for (var i = 0; i < N; i++) {
-      var tipTxt = (mLabel + ': ' + fmt(mVals[i], mType) + ' (' + DAYS[i] + ')').replace(/'/g, '&#39;');
-      if (showDots) {
-        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="3" fill="' + col + '" stroke="#ffffff" stroke-width="1.5" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
-      } else {
-        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="6" fill="transparent" style="cursor:pointer" onmouseenter="showTip(event,\'' + tipTxt + '\')" onmouseleave="hideTip()"/>';
+    if (showDots) {
+      for (var i = 0; i < N; i++) {
+        svg += '<circle cx="' + coords[i][0] + '" cy="' + coords[i][1] + '" r="2.5" fill="' + col + '" stroke="#ffffff" stroke-width="1.2" style="pointer-events:none"/>';
       }
     }
   }
 
+  // 호버 가이드라인 + 하이라이트 점 (처음엔 숨김)
+  svg += '<line id="chartGuideLine" x1="0" y1="' + PT + '" x2="0" y2="' + (PT + cH) + '" stroke="rgba(0,0,0,0.25)" stroke-width="1" style="opacity:0;pointer-events:none"/>';
+  for (var si = 0; si < series.length; si++) {
+    svg += '<circle id="chartHL' + si + '" cx="0" cy="0" r="4.5" fill="' + series[si].meta.color + '" stroke="#fff" stroke-width="2" style="opacity:0;pointer-events:none"/>';
+  }
+
+  // 마우스 호버 캡처용 투명 오버레이 (차트 전체 영역)
+  svg += '<rect x="' + PL + '" y="' + PT + '" width="' + cW + '" height="' + cH + '" fill="transparent" style="cursor:crosshair" onmousemove="chartHoverMove(event)" onmouseleave="chartHoverLeave()"/>';
+
   svg += '</svg>';
   document.getElementById('lineChartWrap').innerHTML = svg;
+
+  // 호버 인터랙션에 필요한 컨텍스트 저장
+  chartCtx = {
+    DAYS: DAYS, N: N, series: series, normed: normed,
+    PL: PL, PR: PR, PT: PT, PB: PB, cW: cW, cH: cH, W: W, H: H,
+    xp: xp, yp: yp
+  };
+}
+
+var chartCtx = null;
+
+function chartHoverMove(e) {
+  if (!chartCtx) return;
+  var svgEl = e.currentTarget.ownerSVGElement || e.currentTarget.closest('svg');
+  if (!svgEl) return;
+  var rect = svgEl.getBoundingClientRect();
+  var scaleX = chartCtx.W / rect.width;
+  var mouseXSvg = (e.clientX - rect.left) * scaleX;
+
+  var idx = chartCtx.N > 1
+    ? Math.round((mouseXSvg - chartCtx.PL) / chartCtx.cW * (chartCtx.N - 1))
+    : 0;
+  idx = Math.max(0, Math.min(chartCtx.N - 1, idx));
+
+  var gx = chartCtx.xp(idx);
+
+  // 가이드라인 위치 갱신
+  var guide = document.getElementById('chartGuideLine');
+  if (guide) {
+    guide.setAttribute('x1', gx);
+    guide.setAttribute('x2', gx);
+    guide.style.opacity = '1';
+  }
+
+  // 각 시리즈 하이라이트 점 위치 갱신 + 툴팁 텍스트 구성
+  var lines = [];
+  for (var si = 0; si < chartCtx.series.length; si++) {
+    var s = chartCtx.series[si];
+    var hl = document.getElementById('chartHL' + si);
+    var gy = chartCtx.yp(chartCtx.normed[si][idx]);
+    if (hl) {
+      hl.setAttribute('cx', gx);
+      hl.setAttribute('cy', gy);
+      hl.style.opacity = '1';
+    }
+    lines.push('<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + s.meta.color + ';margin-right:6px;vertical-align:middle"></span>'
+      + s.meta.label + ': <b>' + fmt(s.values[idx], s.meta.type) + '</b>');
+  }
+
+  var dateLabel = chartCtx.DAYS[idx];
+  var tipHtml = '<div style="font-weight:600;margin-bottom:4px">' + dateLabel + '</div>' + lines.join('<br>');
+  showTipHtml(e, tipHtml);
+}
+
+function chartHoverLeave() {
+  var guide = document.getElementById('chartGuideLine');
+  if (guide) guide.style.opacity = '0';
+  if (chartCtx) {
+    for (var si = 0; si < chartCtx.series.length; si++) {
+      var hl = document.getElementById('chartHL' + si);
+      if (hl) hl.style.opacity = '0';
+    }
+  }
+  hideTip();
 }
 
 function showTip(e, text) {
@@ -1773,6 +1854,20 @@ function showTip(e, text) {
   tip.style.left = x + 'px';
   tip.style.top  = y + 'px';
 }
+
+function showTipHtml(e, html) {
+  var tip = document.getElementById('tip');
+  tip.innerHTML = html;
+  tip.style.whiteSpace = 'normal';
+  tip.style.opacity = '1';
+  var x = e.clientX + 16;
+  var y = e.clientY - 16;
+  if (x + tip.offsetWidth + 220 > window.innerWidth) x = e.clientX - 16 - tip.offsetWidth;
+  if (y < 8) y = 8;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+}
+
 function hideTip() {
   document.getElementById('tip').style.opacity = '0';
 }
@@ -1831,7 +1926,7 @@ var TABLE_COLS = [
   {key:'cpm',         label:'CPM',    type:'cpc'}
 ];
 var selectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
-var campSelectedCols = ['cost','revenue','roas','conversions','cpa','clicks','ctr','impressions'];
+var campSelectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
 
 function buildCampColDropdown() {
   var html = '';
@@ -1908,6 +2003,7 @@ function toggleCol(key) {
   var bk = brandKeys(), ck = chKeys();
   var cm = sumData(bk, ck, RAW);
   renderTable(cm, ck);
+  renderDailyTable(ck);
 }
 
 // 브랜드별 컬럼/레이블 오버라이드
@@ -2011,6 +2107,84 @@ function buildColDropdown() {
   document.getElementById('colDropdown').innerHTML = html;
   var visibleCount = getEffectiveCols().length;
   document.getElementById('colCount').textContent = '(' + visibleCount + ')';
+}
+
+// 일자별 데이터 테이블 (매체별 데이터와 동일 컬럼, 날짜를 행으로)
+function renderDailyTable(ck) {
+  var activeCols = getEffectiveCols();
+  var bk = brandKeys();
+
+  // thead
+  var headHtml = '<th style="cursor:default">날짜</th>';
+  for (var i = 0; i < activeCols.length; i++) {
+    headHtml += '<th style="cursor:default">' + activeCols[i].label + '</th>';
+  }
+  document.getElementById('dailyTableHead').innerHTML = headHtml;
+
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+  var d = new Date(dateFrom);
+  var dEnd = new Date(dateTo);
+  var dayKeys = [];
+  while (d <= dEnd) {
+    dayKeys.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
+  }
+
+  var html = '';
+  var total = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
+  var anyRow = false;
+
+  for (var di = 0; di < dayKeys.length; di++) {
+    var dKey = dayKeys[di];
+    var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
+    for (var ci = 0; ci < ck.length; ci++) {
+      var chKey = ck[ci];
+      for (var bi = 0; bi < bk.length; bi++) {
+        var dayData = getDayData(bk[bi], chKey, dKey);
+        s.cost         += dayData.cost         || 0;
+        s.revenue      += dayData.revenue      || 0;
+        s.clicks       += dayData.clicks       || 0;
+        s.impressions  += dayData.impressions  || 0;
+        s.conversions  += dayData.conversions  || 0;
+        s.app_installs += dayData.app_installs || 0;
+      }
+    }
+    if (s.impressions === 0 && s.conversions === 0) continue;
+    anyRow = true;
+    total.cost         += s.cost;
+    total.revenue      += s.revenue;
+    total.clicks       += s.clicks;
+    total.impressions  += s.impressions;
+    total.conversions  += s.conversions;
+    total.app_installs += s.app_installs;
+
+    var dCalc = calc(s);
+    var mm = dKey.slice(5,7), dd = dKey.slice(8,10);
+    html += '<tr><td style="font-family:\'Inter\',sans-serif;font-weight:500">' + mm + '/' + dd + '</td>';
+    for (var j = 0; j < activeCols.length; j++) {
+      var col = activeCols[j];
+      html += '<td>' + fmt(dCalc[col.key], col.type) + '</td>';
+    }
+    html += '</tr>';
+  }
+
+  if (!anyRow) {
+    document.getElementById('dailyTbody').innerHTML = '<tr><td colspan="' + (activeCols.length + 1) + '" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
+    return;
+  }
+
+  // 합계 행
+  var tc = calc(total);
+  html += '<tr style="border-top:2px solid var(--border2);background:var(--bg3)">';
+  html += '<td style="font-weight:600;font-family:\'Noto Sans KR\',sans-serif;font-size:12px">합계</td>';
+  for (var j = 0; j < activeCols.length; j++) {
+    var col = activeCols[j];
+    html += '<td style="font-weight:600">' + fmt(tc[col.key], col.type) + '</td>';
+  }
+  html += '</tr>';
+
+  document.getElementById('dailyTbody').innerHTML = html;
 }
 
 function renderTable(cm, ck) {
@@ -2793,6 +2967,7 @@ function render() {
   renderKPIs(cm, pm);
   buildMetricSelector();
   renderChart(cm, ck);
+  renderDailyTable(ck);
   renderTable(cm, ck);
   renderCampaignTable();
   renderMetaCreatives();
@@ -2985,6 +3160,27 @@ function setPreset(btn, days) {
   from.setDate(yesterday.getDate() - days + 1);
   document.getElementById('dateFrom').value = from.toISOString().slice(0, 10);
   document.getElementById('dateTo').value   = yesterday.toISOString().slice(0, 10);
+  updateLabel();
+  saveDateRange();
+  campaignCache = {};
+  renderWithData();
+}
+
+function shiftDateRange(dir) {
+  var fromEl = document.getElementById('dateFrom');
+  var toEl   = document.getElementById('dateTo');
+  var f = new Date(fromEl.value);
+  var t = new Date(toEl.value);
+  var spanDays = Math.round((t - f) / 86400000) + 1; // 포함 일수
+
+  f.setDate(f.getDate() + dir * spanDays);
+  t.setDate(t.getDate() + dir * spanDays);
+
+  fromEl.value = f.toISOString().slice(0, 10);
+  toEl.value   = t.toISOString().slice(0, 10);
+
+  var btns = document.querySelectorAll('.date-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   updateLabel();
   saveDateRange();
   campaignCache = {};
