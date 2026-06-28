@@ -330,8 +330,18 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 
 
 <div class="table-section" style="margin-bottom:16px">
-  <div class="table-header">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <span>일자별 데이터</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="dailyPrevBtn" class="date-btn" onclick="toggleDailyPrev()" style="font-size:11px;padding:4px 12px;border-radius:6px">동기간 비교</button>
+      <div style="position:relative">
+        <button class="col-dropdown-btn" id="dailyColDropBtn" onclick="toggleDailyColDrop()">
+          컬럼 선택 <span id="dailyColCount"></span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:4px;vertical-align:middle"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="col-dropdown" id="dailyColDropdown" style="display:none"></div>
+      </div>
+    </div>
   </div>
   <div style="overflow-x:auto">
     <table id="dailyTable">
@@ -1927,6 +1937,53 @@ var TABLE_COLS = [
 ];
 var selectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
 var campSelectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
+var dailySelectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
+var dailyPrevMode = false;
+
+function buildDailyColDropdown() {
+  var html = '';
+  for (var i = 0; i < TABLE_COLS.length; i++) {
+    var col = TABLE_COLS[i];
+    var active = dailySelectedCols.indexOf(col.key) !== -1;
+    html += '<div class="col-item ' + (active ? 'col-active' : '') + '" onclick="event.stopPropagation();toggleDailyCol(\'' + col.key + '\')">';
+    html += '<div class="col-check"></div>' + col.label + '</div>';
+  }
+  document.getElementById('dailyColDropdown').innerHTML = html;
+  document.getElementById('dailyColCount').textContent = '(' + dailySelectedCols.length + '/' + TABLE_COLS.length + ')';
+}
+
+function toggleDailyColDrop() {
+  var dd = document.getElementById('dailyColDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleDailyCol(key) {
+  var idx = dailySelectedCols.indexOf(key);
+  if (idx !== -1) {
+    if (dailySelectedCols.length <= 1) return;
+    dailySelectedCols.splice(idx, 1);
+  } else {
+    dailySelectedCols.push(key);
+    dailySelectedCols.sort(function(a, b) {
+      var ai = TABLE_COLS.findIndex(function(c){ return c.key === a; });
+      var bi = TABLE_COLS.findIndex(function(c){ return c.key === b; });
+      return ai - bi;
+    });
+  }
+  buildDailyColDropdown();
+  renderDailyTable(chKeys());
+}
+
+function toggleDailyPrev() {
+  dailyPrevMode = !dailyPrevMode;
+  var btn = document.getElementById('dailyPrevBtn');
+  if (btn) {
+    btn.style.background  = dailyPrevMode ? 'var(--text)' : 'transparent';
+    btn.style.color       = dailyPrevMode ? 'var(--bg)'   : 'var(--muted)';
+    btn.style.borderColor = dailyPrevMode ? 'var(--text)' : 'var(--border2)';
+  }
+  renderDailyTable(chKeys());
+}
 
 function buildCampColDropdown() {
   var html = '';
@@ -1983,6 +2040,7 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.table-header')) {
     document.getElementById('colDropdown').style.display = 'none';
     document.getElementById('campColDropdown').style.display = 'none';
+    document.getElementById('dailyColDropdown').style.display = 'none';
   }
 });
 
@@ -2110,8 +2168,41 @@ function buildColDropdown() {
 }
 
 // 일자별 데이터 테이블 (매체별 데이터와 동일 컬럼, 날짜를 행으로)
+function getDailyEffectiveCols() {
+  var brand = getActiveBrand();
+  var override = brand ? BRAND_OVERRIDES[brand] : null;
+  return TABLE_COLS.filter(function(c) {
+    if (dailySelectedCols.indexOf(c.key) === -1) return false;
+    if (override && override.excludeCols && override.excludeCols.indexOf(c.key) !== -1) return false;
+    return true;
+  }).map(function(c) {
+    if (override && override.labelOverrides && override.labelOverrides[c.key]) {
+      return {key: c.key, label: override.labelOverrides[c.key], type: c.type};
+    }
+    return c;
+  });
+}
+
+function sumDayAcross(bk, ck, dKey) {
+  var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
+  for (var ci = 0; ci < ck.length; ci++) {
+    var chKey = ck[ci];
+    for (var bi = 0; bi < bk.length; bi++) {
+      var dayData = getDayData(bk[bi], chKey, dKey);
+      s.cost         += dayData.cost         || 0;
+      s.revenue      += dayData.revenue      || 0;
+      s.clicks       += dayData.clicks       || 0;
+      s.impressions  += dayData.impressions  || 0;
+      s.conversions  += dayData.conversions  || 0;
+      s.app_installs += dayData.app_installs || 0;
+    }
+  }
+  return s;
+}
+
 function renderDailyTable(ck) {
-  var activeCols = getEffectiveCols();
+  buildDailyColDropdown();
+  var activeCols = getDailyEffectiveCols();
   var bk = brandKeys();
 
   // thead
@@ -2130,6 +2221,7 @@ function renderDailyTable(ck) {
     dayKeys.push(d.toISOString().slice(0, 10));
     d.setDate(d.getDate() + 1);
   }
+  var spanDays = dayKeys.length;
 
   var html = '';
   var total = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
@@ -2137,19 +2229,7 @@ function renderDailyTable(ck) {
 
   for (var di = 0; di < dayKeys.length; di++) {
     var dKey = dayKeys[di];
-    var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
-    for (var ci = 0; ci < ck.length; ci++) {
-      var chKey = ck[ci];
-      for (var bi = 0; bi < bk.length; bi++) {
-        var dayData = getDayData(bk[bi], chKey, dKey);
-        s.cost         += dayData.cost         || 0;
-        s.revenue      += dayData.revenue      || 0;
-        s.clicks       += dayData.clicks       || 0;
-        s.impressions  += dayData.impressions  || 0;
-        s.conversions  += dayData.conversions  || 0;
-        s.app_installs += dayData.app_installs || 0;
-      }
-    }
+    var s = sumDayAcross(bk, ck, dKey);
     if (s.impressions === 0 && s.conversions === 0) continue;
     anyRow = true;
     total.cost         += s.cost;
@@ -2167,6 +2247,22 @@ function renderDailyTable(ck) {
       html += '<td>' + fmt(dCalc[col.key], col.type) + '</td>';
     }
     html += '</tr>';
+
+    // 이전 동기간 서브 행 (같은 날, spanDays 만큼 이전)
+    if (dailyPrevMode) {
+      var pDate = new Date(dKey);
+      pDate.setDate(pDate.getDate() - spanDays);
+      var pKey = pDate.toISOString().slice(0, 10);
+      var ps = sumDayAcross(bk, ck, pKey);
+      var pCalc = calc(ps);
+      html += '<tr style="background:rgba(59,125,246,0.07)">';
+      html += '<td style="font-size:10px;color:#3b7de9;font-weight:500;font-family:\'Noto Sans KR\',sans-serif">↳ 이전 동기간</td>';
+      for (var j = 0; j < activeCols.length; j++) {
+        var col = activeCols[j];
+        html += '<td style="font-size:11px;color:#374151;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums">' + fmt(pCalc[col.key], col.type) + changeArrow(dCalc[col.key], pCalc[col.key], col.type) + '</td>';
+      }
+      html += '</tr>';
+    }
   }
 
   if (!anyRow) {
