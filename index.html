@@ -2415,12 +2415,29 @@ function renderDailyTable(ck) {
     total.app_installs += s.app_installs;
 
     var dCalc = calc(s);
-    html += '<tr><td style="font-family:\'Inter\',sans-serif;font-weight:500">' + bucket.label + '</td>';
+    var isMemoEligible = (dailyGranularity === 'day') && brandKeys().indexOf('minoxell') !== -1 && S.brand === 'minoxell';
+    var dateKey = bucket.keys[0];
+    var dateCellHtml = bucket.label;
+    if (isMemoEligible) {
+      var memos = dailyMemos[dateKey] || [];
+      dateCellHtml += ' <button onclick="event.stopPropagation();openMemoPanel(\'' + dateKey + '\')" style="border:none;background:' + (memos.length ? 'var(--text)' : 'var(--bg3)') + ';color:' + (memos.length ? 'var(--bg)' : 'var(--muted)') + ';border-radius:50%;width:16px;height:16px;font-size:10px;line-height:16px;cursor:pointer;vertical-align:middle;margin-left:4px;padding:0">' + (memos.length ? memos.length : '+') + '</button>';
+    }
+    html += '<tr><td style="font-family:\'Inter\',sans-serif;font-weight:500;white-space:nowrap">' + dateCellHtml + '</td>';
     for (var j = 0; j < activeCols.length; j++) {
       var col = activeCols[j];
       html += '<td>' + fmt(dCalc[col.key], col.type) + '</td>';
     }
     html += '</tr>';
+
+    // 메모 표시 행
+    if (isMemoEligible && (dailyMemos[dateKey] || []).length > 0) {
+      html += '<tr style="background:rgba(250,204,21,0.08)"><td colspan="' + (activeCols.length + 1) + '" style="padding:6px 14px;font-size:11px;color:#92400e;font-family:\'Noto Sans KR\',sans-serif">';
+      var memoLines = dailyMemos[dateKey].map(function(m){
+        return '📝 ' + m.memo + (m.author ? ' <span style="opacity:.6">— ' + m.author + '</span>' : '');
+      });
+      html += memoLines.join('<br>');
+      html += '</td></tr>';
+    }
 
     // 이전 동기간 서브 행 (버킷 길이만큼 이전으로 시프트한 같은 길이의 버킷)
     if (dailyPrevMode) {
@@ -4037,16 +4054,127 @@ function loadNotice() {
     .catch(function(){ /* 공지 로드 실패 시 무시 */ });
 }
 
+// ── 마이녹셀 일자별 메모 ──────────────────────────────────────────────────────
+var MEMO_API_URL = 'https://script.google.com/macros/s/AKfycbxJR9UnULksJISVRwFaUpHZvvaL7z-5kIYr2DnNXbgXZXR6_LK7_wnK4BIfEkpZAalA/exec';
+var dailyMemos = {}; // { 'YYYY-MM-DD': [{id, memo, author, written}, ...] }
+var memoCurrentDate = null;
+
+function loadMemos(callback) {
+  fetch(MEMO_API_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      dailyMemos = data || {};
+      if (callback) callback();
+    })
+    .catch(function(){ if (callback) callback(); });
+}
+
+function openMemoPanel(dateKey) {
+  memoCurrentDate = dateKey;
+  document.getElementById('memoPanelDate').textContent = dateKey.replace(/-/g,'.') + ' 메모';
+  document.getElementById('memoInput').value = '';
+  document.getElementById('memoAuthorInput').value = '';
+  renderMemoList();
+  document.getElementById('memoModal').style.display = 'flex';
+}
+
+function closeMemoPanel() {
+  document.getElementById('memoModal').style.display = 'none';
+}
+
+function renderMemoList() {
+  var list = dailyMemos[memoCurrentDate] || [];
+  var html = '';
+  if (list.length === 0) {
+    html = '<div style="font-size:12px;color:var(--muted);font-family:\'Noto Sans KR\',sans-serif">아직 메모가 없어요</div>';
+  } else {
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      html += '<div style="border:1px solid var(--border2);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
+      html += '<div style="font-size:12px;font-family:\'Noto Sans KR\',sans-serif;color:var(--text);flex:1">' + escapeHtml(m.memo) + '<div style="font-size:10px;color:var(--muted);margin-top:4px">' + escapeHtml(m.author||'익명') + ' · ' + escapeHtml(m.written||'') + '</div></div>';
+      html += '<button onclick="deleteMemoEntry(\'' + m.id + '\')" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px">✕</button>';
+      html += '</div>';
+    }
+  }
+  document.getElementById('memoPanelList').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveMemoEntry() {
+  var memo = document.getElementById('memoInput').value.trim();
+  if (!memo) return;
+  var author = document.getElementById('memoAuthorInput').value.trim();
+  var btn = document.getElementById('memoSaveBtn');
+  btn.textContent = '저장 중...';
+  btn.disabled = true;
+
+  fetch(MEMO_API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'save', date: memoCurrentDate, memo: memo, author: author})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    btn.textContent = '저장';
+    btn.disabled = false;
+    document.getElementById('memoInput').value = '';
+    loadMemos(function(){
+      renderMemoList();
+      renderDailyTable(chKeys());
+    });
+  })
+  .catch(function(){
+    btn.textContent = '저장';
+    btn.disabled = false;
+    alert('메모 저장에 실패했어요. 다시 시도해주세요.');
+  });
+}
+
+function deleteMemoEntry(id) {
+  if (!confirm('이 메모를 삭제할까요?')) return;
+  fetch(MEMO_API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'delete', id: id})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(){
+    loadMemos(function(){
+      renderMemoList();
+      renderDailyTable(chKeys());
+    });
+  })
+  .catch(function(){ alert('메모 삭제에 실패했어요.'); });
+}
+
 buildMetricSelector();
 buildColDropdown();
 buildBudgetPeriodSelector();
 restoreDateRange();
 renderWithData();
 loadNotice();
+loadMemos(function(){ renderDailyTable(chKeys()); });
 </script>
 <!-- 이미지 모달 -->
 <div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out" onclick="closeImgModal()">
   <img id="imgModalImg" src="" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+</div>
+
+<!-- 메모 패널 (마이녹셀 일자별 데이터 전용) -->
+<div id="memoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99998;align-items:center;justify-content:center" onclick="if(event.target===this)closeMemoPanel()">
+  <div style="background:var(--bg2);border-radius:12px;padding:20px;width:360px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span id="memoPanelDate" style="font-family:'Noto Sans KR',sans-serif;font-weight:600;font-size:14px"></span>
+      <button onclick="closeMemoPanel()" style="border:none;background:transparent;cursor:pointer;font-size:16px;color:var(--muted)">×</button>
+    </div>
+    <div id="memoPanelList" style="margin-bottom:14px;display:flex;flex-direction:column;gap:8px"></div>
+    <textarea id="memoInput" placeholder="메모를 입력하세요..." style="width:100%;min-height:60px;font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);resize:vertical;outline:none;margin-bottom:8px"></textarea>
+    <input id="memoAuthorInput" placeholder="작성자 (선택)" style="width:100%;font-family:'Noto Sans KR',sans-serif;font-size:12px;padding:6px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);outline:none;margin-bottom:10px">
+    <button onclick="saveMemoEntry()" id="memoSaveBtn" style="width:100%;padding:8px;border:none;border-radius:8px;background:var(--text);color:var(--bg);font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer">저장</button>
+  </div>
 </div>
 
 </body>
