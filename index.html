@@ -2655,7 +2655,7 @@ function renderCampaignTable() {
           for (var cri2 = 0; cri2 < crkeys.length; cri2++) {
             var crn = crkeys[cri2]; var crc = gc.creatives[crn];
             if (!hierMerged[rowKey].groups[gn].creatives[crn]) hierMerged[rowKey].groups[gn].creatives[crn] = {name:crn, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0, app_installs:0};
-            hierMerged[rowKey].groups[gn].creatives[crn].cost += crc.cost; hierMerged[rowKey].groups[gn].creatives[crn].impressions += crc.impressions; hierMerged[rowKey].groups[gn].creatives[crn].clicks += crc.clicks; hierMerged[rowKey].groups[gn].creatives[crn].conversions += crc.conversions; hierMerged[rowKey].groups[gn].creatives[crn].revenue += crc.revenue; hierMerged[rowKey].groups[gn].creatives[crn].app_installs += (crc.app_installs||0);
+            hierMerged[rowKey].groups[gn].creatives[crn].cost += crc.cost; hierMerged[rowKey].groups[gn].creatives[crn].impressions += crc.impressions; hierMerged[rowKey].groups[gn].creatives[crn].clicks += crc.clicks; hierMerged[rowKey].groups[gn].creatives[crn].conversions += crc.conversions; hierMerged[rowKey].groups[gn].creatives[crn].revenue += crc.revenue; hierMerged[rowKey].groups[gn].creatives[crn].cart_conv += (crc.cart_conv||0); hierMerged[rowKey].groups[gn].creatives[crn].cart_rev += (crc.cart_rev||0); hierMerged[rowKey].groups[gn].creatives[crn].app_installs += (crc.app_installs||0);
           }
         }
       }
@@ -2684,7 +2684,7 @@ function renderCampaignTable() {
             for (var cri3 = 0; cri3 < crkeysP.length; cri3++) {
               var crnP = crkeysP[cri3]; var crcP = gcP.creatives[crnP];
               if (!prevHierMerged[rowKeyP].groups[gnP].creatives[crnP]) prevHierMerged[rowKeyP].groups[gnP].creatives[crnP] = {name:crnP, cost:0, impressions:0, clicks:0, conversions:0, revenue:0, cart_conv:0, cart_rev:0};
-              prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].cost += crcP.cost; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].impressions += crcP.impressions; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].clicks += crcP.clicks; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].conversions += crcP.conversions; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].revenue += crcP.revenue;
+              prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].cost += crcP.cost; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].impressions += crcP.impressions; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].clicks += crcP.clicks; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].conversions += crcP.conversions; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].revenue += crcP.revenue; prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].cart_conv += (crcP.cart_conv||0); prevHierMerged[rowKeyP].groups[gnP].creatives[crnP].cart_rev += (crcP.cart_rev||0);
             }
           }
         }
