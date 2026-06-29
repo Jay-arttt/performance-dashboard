@@ -2967,7 +2967,7 @@ function renderMetaCreatives() {
     var adId  = r['광고소재 ID'] || r['광고소재'] || '(미분류)';  // ID를 키로
     var adName = r['광고소재'] || '(미분류)';                       // 이름은 표시용
     var thumb = r['이미지 URL'] || '';
-    var cost  = Number(r['총비용(vat-)']) || 0;
+    var cost  = Number(r['총비용(마크업 포함)']) || 0;
     var conv  = Number(r['구매완료 전환수']) || 0;
     var rev   = Number(r['구매완료 매출액']) || 0;
     var impr  = Number(r['노출수']) || 0;
