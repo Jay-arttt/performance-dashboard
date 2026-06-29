@@ -4077,11 +4077,15 @@ function loadMemos(callback) {
     .catch(function(){ if (callback) callback(); });
 }
 
+var memoEditingId = null;
+
 function openMemoPanel(dateKey) {
   memoCurrentDate = dateKey;
+  memoEditingId = null;
   document.getElementById('memoPanelDate').textContent = dateKey.replace(/-/g,'.') + ' 메모';
   document.getElementById('memoInput').value = '';
   document.getElementById('memoAuthorInput').value = '';
+  document.getElementById('memoSaveBtn').textContent = '저장';
   renderMemoList();
   document.getElementById('memoModal').style.display = 'flex';
 }
@@ -4099,16 +4103,40 @@ function renderMemoList() {
     for (var i = 0; i < list.length; i++) {
       var m = list[i];
       html += '<div style="border:1px solid var(--border2);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
-      html += '<div style="font-size:12px;font-family:\'Noto Sans KR\',sans-serif;color:var(--text);flex:1">' + escapeHtml(m.memo) + '<div style="font-size:10px;color:var(--muted);margin-top:4px">' + escapeHtml(m.author||'익명') + ' · ' + escapeHtml(m.written||'') + '</div></div>';
+      html += '<div style="font-size:12px;font-family:\'Noto Sans KR\',sans-serif;color:var(--text);flex:1">' + escapeHtml(m.memo) + '<div style="font-size:10px;color:var(--muted);margin-top:4px">' + escapeHtml(m.author||'익명') + ' · ' + escapeHtml(formatKST(m.written)) + '</div></div>';
+      html += '<div style="display:flex;gap:4px;flex-shrink:0">';
+      html += '<button onclick="editMemoEntry(\'' + m.id + '\')" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px">✎</button>';
       html += '<button onclick="deleteMemoEntry(\'' + m.id + '\')" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px">✕</button>';
+      html += '</div>';
       html += '</div>';
     }
   }
   document.getElementById('memoPanelList').innerHTML = html;
 }
 
+function editMemoEntry(id) {
+  var list = dailyMemos[memoCurrentDate] || [];
+  var m = list.find(function(x){ return String(x.id) === String(id); });
+  if (!m) return;
+  memoEditingId = id;
+  document.getElementById('memoInput').value = m.memo;
+  document.getElementById('memoAuthorInput').value = m.author || '';
+  document.getElementById('memoSaveBtn').textContent = '수정 완료';
+  document.getElementById('memoInput').focus();
+}
+
 function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatKST(isoOrStr) {
+  if (!isoOrStr) return '';
+  var d = new Date(isoOrStr);
+  if (isNaN(d)) return isoOrStr; // 이미 일반 문자열이면 그대로
+  // UTC 기준 Date를 한국 시간(UTC+9)으로 변환
+  var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+  return kst.getUTCFullYear() + '-' + pad(kst.getUTCMonth()+1) + '-' + pad(kst.getUTCDate()) + ' ' + pad(kst.getUTCHours()) + ':' + pad(kst.getUTCMinutes());
 }
 
 function saveMemoEntry() {
@@ -4116,33 +4144,61 @@ function saveMemoEntry() {
   if (!memo) return;
   var author = document.getElementById('memoAuthorInput').value.trim();
   var btn = document.getElementById('memoSaveBtn');
-  btn.textContent = '저장 중...';
+  var wasEditing = memoEditingId;
+  btn.textContent = wasEditing ? '수정 중...' : '저장 중...';
   btn.disabled = true;
 
-  fetch(MEMO_API_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'save', date: memoCurrentDate, memo: memo, author: author})
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(res){
-    btn.textContent = '저장';
-    btn.disabled = false;
-    document.getElementById('memoInput').value = '';
-    loadMemos(function(){
-      renderMemoList();
-      renderDailyTable(chKeys());
+  function doSave() {
+    fetch(MEMO_API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'save', date: memoCurrentDate, memo: memo, author: author})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      btn.disabled = false;
+      btn.textContent = '저장';
+      document.getElementById('memoInput').value = '';
+      document.getElementById('memoAuthorInput').value = '';
+      memoEditingId = null;
+      loadMemos(function(){
+        renderMemoList();
+        renderDailyTable(chKeys());
+      });
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = wasEditing ? '수정 완료' : '저장';
+      alert('메모 저장에 실패했어요. 다시 시도해주세요.');
     });
-  })
-  .catch(function(){
-    btn.textContent = '저장';
-    btn.disabled = false;
-    alert('메모 저장에 실패했어요. 다시 시도해주세요.');
-  });
+  }
+
+  if (wasEditing) {
+    // 기존 메모 삭제 후 새 메모로 교체
+    fetch(MEMO_API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'delete', id: wasEditing})
+    })
+    .then(function(){ doSave(); })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = '수정 완료';
+      alert('메모 수정에 실패했어요. 다시 시도해주세요.');
+    });
+  } else {
+    doSave();
+  }
 }
 
 function deleteMemoEntry(id) {
   if (!confirm('이 메모를 삭제할까요?')) return;
+  if (String(memoEditingId) === String(id)) {
+    memoEditingId = null;
+    document.getElementById('memoInput').value = '';
+    document.getElementById('memoAuthorInput').value = '';
+    document.getElementById('memoSaveBtn').textContent = '저장';
+  }
   fetch(MEMO_API_URL, {
     method: 'POST',
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
