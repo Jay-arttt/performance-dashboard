@@ -2895,6 +2895,17 @@ function syncCampScrollbar() {
 // ── Meta 소재별 섹션 ────────────────────────────────────────────
 var metaExpandedCamps  = {};
 var metaExpandedGroups = {};
+var metaTreeSort = {key: 'cost', asc: false};
+
+function sortMetaTree(key) {
+  if (metaTreeSort.key === key) {
+    metaTreeSort.asc = !metaTreeSort.asc;
+  } else {
+    metaTreeSort.key = key;
+    metaTreeSort.asc = false;
+  }
+  renderMetaCreatives();
+}
 
 function toggleMetaCamp(key) {
   metaExpandedCamps[key] = !metaExpandedCamps[key];
@@ -2915,15 +2926,19 @@ function renderMetaCreatives() {
   var dateTo   = document.getElementById('dateTo').value;
   var bk = brandKeys();
 
-  // Meta rawRows 수집
+  // Meta rawRows 수집 (브랜드별로 올바른 시트만)
   var rows = [];
   for (var bi = 0; bi < bk.length; bi++) {
-    var cache = null;
-    if (bk[bi].indexOf('skechers') !== -1 && sheetsCache.skechers) cache = sheetsCache.skechers;
-    else if ((bk[bi] === 'minoxell' || bk[bi] === 'oliveyoung') && sheetsCache.minoxell) cache = sheetsCache.minoxell;
-    else if (bk[bi] === 'careerbud' && sheetsCache.careerbud) cache = sheetsCache.careerbud;
-    if (cache && cache._rawMeta)   rows = rows.concat(cache._rawMeta);
-    if (cache && cache._rawOYMeta) rows = rows.concat(cache._rawOYMeta);
+    var b = bk[bi];
+    if (b.indexOf('skechers') !== -1 && sheetsCache.skechers) {
+      // 스케쳐스는 Meta 데이터 없음 (해당 없음)
+    } else if (b === 'minoxell' && sheetsCache.minoxell && sheetsCache.minoxell._rawMeta) {
+      rows = rows.concat(sheetsCache.minoxell._rawMeta);
+    } else if (b === 'oliveyoung' && sheetsCache.minoxell && sheetsCache.minoxell._rawOYMeta) {
+      rows = rows.concat(sheetsCache.minoxell._rawOYMeta);
+    } else if (b === 'careerbud' && sheetsCache.careerbud && sheetsCache.careerbud._rawMeta) {
+      rows = rows.concat(sheetsCache.careerbud._rawMeta);
+    }
   }
 
   // 날짜 필터
@@ -2987,9 +3002,9 @@ function renderMetaCreatives() {
   html += '<thead><tr>';
   var META_TREE_COLS = TABLE_COLS; // 매체별 데이터와 동일한 컬럼
 
-  html += '<th style="' + thS + ';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:2">캠페인 / 그룹 / 소재</th>';
+  html += '<th style="' + thS + ';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:2;cursor:pointer;user-select:none" onclick="sortMetaTree(\'name\')">캠페인 / 그룹 / 소재' + sortArrow('name', metaTreeSort) + '</th>';
   for (var ci2 = 0; ci2 < META_TREE_COLS.length; ci2++) {
-    html += '<th style="' + thS + '">' + META_TREE_COLS[ci2].label + '</th>';
+    html += '<th style="' + thS + ';cursor:pointer;user-select:none" onclick="sortMetaTree(\'' + META_TREE_COLS[ci2].key + '\')">' + META_TREE_COLS[ci2].label + sortArrow(META_TREE_COLS[ci2].key, metaTreeSort) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -3019,7 +3034,14 @@ function renderMetaCreatives() {
     return '<td style="padding:8px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#4a5568">' + fmt(val, type) + '</td>';
   }
 
-  var camps = Object.keys(hier).sort(function(a,b){ return hier[b].cost - hier[a].cost; });
+  var camps = Object.keys(hier).sort(function(a,b){
+    var ca = metaCalc(hier[a]), cb = metaCalc(hier[b]);
+    var av = metaTreeSort.key === 'name' ? a : (ca[metaTreeSort.key] || 0);
+    var bv = metaTreeSort.key === 'name' ? b : (cb[metaTreeSort.key] || 0);
+    if (av < bv) return metaTreeSort.asc ? -1 : 1;
+    if (av > bv) return metaTreeSort.asc ? 1 : -1;
+    return 0;
+  });
   for (var ci = 0; ci < camps.length; ci++) {
     var cn = camps[ci]; var cd = hier[cn];
     var cExp = !!metaExpandedCamps[cn];
@@ -3034,7 +3056,14 @@ function renderMetaCreatives() {
 
     if (!cExp) continue;
 
-    var grps = Object.keys(cd.groups).sort(function(a,b){ return cd.groups[b].cost - cd.groups[a].cost; });
+    var grps = Object.keys(cd.groups).sort(function(a,b){
+      var ga = metaCalc(cd.groups[a]), gb = metaCalc(cd.groups[b]);
+      var av = metaTreeSort.key === 'name' ? a : (ga[metaTreeSort.key] || 0);
+      var bv = metaTreeSort.key === 'name' ? b : (gb[metaTreeSort.key] || 0);
+      if (av < bv) return metaTreeSort.asc ? -1 : 1;
+      if (av > bv) return metaTreeSort.asc ? 1 : -1;
+      return 0;
+    });
     for (var gi = 0; gi < grps.length; gi++) {
       var gn = grps[gi]; var gd = cd.groups[gn];
       var gKey = cn + '__' + gn;
@@ -3050,7 +3079,14 @@ function renderMetaCreatives() {
 
       if (!gExp) continue;
 
-      var ads = Object.keys(gd.ads).sort(function(a,b){ return gd.ads[b].cost - gd.ads[a].cost; });
+      var ads = Object.keys(gd.ads).sort(function(a,b){
+        var aa = metaCalc(gd.ads[a]), ab = metaCalc(gd.ads[b]);
+        var avn = metaTreeSort.key === 'name' ? gd.ads[a].name : (aa[metaTreeSort.key] || 0);
+        var bvn = metaTreeSort.key === 'name' ? gd.ads[b].name : (ab[metaTreeSort.key] || 0);
+        if (avn < bvn) return metaTreeSort.asc ? -1 : 1;
+        if (avn > bvn) return metaTreeSort.asc ? 1 : -1;
+        return 0;
+      });
       for (var ai = 0; ai < ads.length; ai++) {
         var an = ads[ai]; var ad = gd.ads[an];
 
