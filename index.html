@@ -4063,7 +4063,15 @@ function loadMemos(callback) {
   fetch(MEMO_API_URL)
     .then(function(r){ return r.json(); })
     .then(function(data){
-      dailyMemos = data || {};
+      var normalized = {};
+      var keys = Object.keys(data || {});
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var dt = new Date(k);
+        var nk = isNaN(dt) ? k : (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0'));
+        normalized[nk] = data[k];
+      }
+      dailyMemos = normalized;
       if (callback) callback();
     })
     .catch(function(){ if (callback) callback(); });
