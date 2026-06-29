@@ -215,6 +215,11 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
+<div id="noticeBanner" style="display:none;background:#fff7e6;border:1px solid #f0c674;border-radius:10px;padding:10px 16px;margin-bottom:16px;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#7a5c12;align-items:center;gap:8px;max-width:1200px;margin-left:auto;margin-right:auto">
+  <span style="font-size:14px">📌</span>
+  <span id="noticeText"></span>
+</div>
+
 <div class="page-wrap">
 <div class="sticky-filters">
 <div class="header">
@@ -314,8 +319,13 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 
 <div class="chart-section">
   <div class="chart-header">
-    <span class="chart-title">일별 추이</span>
+    <span class="chart-title" id="chartTitle">일별 추이</span>
     <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;gap:2px;background:var(--bg3);border-radius:6px;padding:2px">
+        <button id="granDayBtn"   class="date-btn active" onclick="setChartGranularity('day')"   style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">일별</button>
+        <button id="granWeekBtn"  class="date-btn"        onclick="setChartGranularity('week')"  style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">주간</button>
+        <button id="granMonthBtn" class="date-btn"        onclick="setChartGranularity('month')" style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">월간</button>
+      </div>
       <button id="prevWeekBtn" class="date-btn" onclick="togglePrevWeek()" style="font-size:11px;padding:4px 12px;border-radius:6px">동기간 비교</button>
       <div class="chart-legend" id="chartLegend"></div>
     </div>
@@ -331,8 +341,13 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 
 <div class="table-section" style="margin-bottom:16px">
   <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-    <span>일자별 데이터</span>
+    <span id="dailyTableTitle">일자별 데이터</span>
     <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;gap:2px;background:var(--bg3);border-radius:6px;padding:2px">
+        <button id="dailyGranDayBtn"   class="date-btn active" onclick="setDailyGranularity('day')"   style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">일별</button>
+        <button id="dailyGranWeekBtn"  class="date-btn"        onclick="setDailyGranularity('week')"  style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">주간</button>
+        <button id="dailyGranMonthBtn" class="date-btn"        onclick="setDailyGranularity('month')" style="font-size:11px;padding:4px 10px;border-radius:5px;border:none">월간</button>
+      </div>
       <button id="dailyPrevBtn" class="date-btn" onclick="toggleDailyPrev()" style="font-size:11px;padding:4px 12px;border-radius:6px">동기간 비교</button>
       <div style="position:relative">
         <button class="col-dropdown-btn" id="dailyColDropBtn" onclick="toggleDailyColDrop()">
@@ -1280,6 +1295,23 @@ var CHART_METRICS = [
 
 var selectedMetrics = ['cost', 'revenue'];
 var prevWeekMode = false;
+var chartGranularity = 'day'; // 'day' | 'week' | 'month'
+
+function setChartGranularity(g) {
+  chartGranularity = g;
+  var map = {day:'granDayBtn', week:'granWeekBtn', month:'granMonthBtn'};
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var btn = document.getElementById(map[keys[i]]);
+    if (btn) btn.classList.toggle('active', keys[i] === g);
+  }
+  var titleMap = {day:'일별 추이', week:'주간 추이', month:'월간 추이'};
+  var title = document.getElementById('chartTitle');
+  if (title) title.textContent = titleMap[g];
+  var bk = brandKeys(), ck = chKeys();
+  var cm = sumData(bk, ck, RAW);
+  renderChart(cm, ck);
+}
 
 function togglePrevWeek() {
   prevWeekMode = !prevWeekMode;
@@ -1559,6 +1591,59 @@ function toggleMetric(key) {
   renderChart(cm, ck);
 }
 
+// ── 일/주/월 버킷 생성 (차트, 일자별 데이터 공용) ─────────────────────────────
+function weekLabel(keys) {
+  var first = keys[0].split('-'), last = keys[keys.length-1].split('-');
+  return first[1] + '/' + first[2] + '~' + last[1] + '/' + last[2];
+}
+
+function buildBuckets(dayKeys, granularity) {
+  if (granularity === 'day') {
+    return dayKeys.map(function(k){ var p = k.split('-'); return {keys:[k], label: p[1]+'/'+p[2]}; });
+  }
+  if (granularity === 'week') {
+    var buckets = [];
+    var curWeekKeys = [];
+    for (var i = 0; i < dayKeys.length; i++) {
+      var dt = new Date(dayKeys[i]);
+      var isMonday = dt.getDay() === 1;
+      if (isMonday && curWeekKeys.length > 0) {
+        buckets.push({keys: curWeekKeys, label: weekLabel(curWeekKeys)});
+        curWeekKeys = [];
+      }
+      curWeekKeys.push(dayKeys[i]);
+    }
+    if (curWeekKeys.length) buckets.push({keys: curWeekKeys, label: weekLabel(curWeekKeys)});
+    return buckets;
+  }
+  if (granularity === 'month') {
+    var byMonth = {};
+    var order = [];
+    for (var i = 0; i < dayKeys.length; i++) {
+      var ym = dayKeys[i].slice(0, 7);
+      if (!byMonth[ym]) { byMonth[ym] = []; order.push(ym); }
+      byMonth[ym].push(dayKeys[i]);
+    }
+    return order.map(function(ym){ return {keys: byMonth[ym], label: parseInt(ym.slice(5,7),10) + '월'}; });
+  }
+  return [];
+}
+
+function sumBucketKeys(keys, byDayMap) {
+  var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
+  for (var i = 0; i < keys.length; i++) {
+    var d2 = byDayMap[keys[i]];
+    if (!d2) continue;
+    s.cost         += d2.cost         || 0;
+    s.revenue      += d2.revenue      || 0;
+    s.clicks       += d2.clicks       || 0;
+    s.impressions  += d2.impressions  || 0;
+    s.conversions  += d2.conversions  || 0;
+    s.app_installs += d2.app_installs || 0;
+  }
+  return s;
+}
+
 function renderChart(cm, ck) {
   var brand = getActiveBrand();
   var override = brand ? BRAND_OVERRIDES[brand] : null;
@@ -1577,81 +1662,146 @@ function renderChart(cm, ck) {
     legHtml += '<div class="legend-item"><div class="legend-dot" style="background:' + activeMets[i].color + '"></div>' + activeMets[i].label + '</div>';
   }
   if (prevWeekMode) {
-    legHtml += '<div class="legend-item" style="opacity:.6"><div style="width:16px;height:1px;border-top:2px dashed #aaa;margin-right:6px"></div>동기간</div>';
+    var prevLegendLabel = chartGranularity === 'month' ? '전월' : '전주';
+    legHtml += '<div class="legend-item" style="opacity:.6"><div style="width:16px;height:1px;border-top:2px dashed #aaa;margin-right:6px"></div>' + prevLegendLabel + '</div>';
   }
   document.getElementById('chartLegend').innerHTML = legHtml;
 
   // 날짜 범위에서 일별 날짜 배열 생성
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo   = document.getElementById('dateTo').value;
-  var DAYS = [];
+  var dayKeysAll = [];
   var d = new Date(dateFrom);
   var dEnd = new Date(dateTo);
   while (d <= dEnd) {
-    var mm = d.getMonth() + 1;
-    var dd = d.getDate();
-    DAYS.push(mm + '/' + dd);
+    dayKeysAll.push(d.toISOString().slice(0, 10));
     d.setDate(d.getDate() + 1);
   }
 
-  // Build daily series per metric (실제 날짜별 raw 데이터에서 합산)
+  // 일별 raw 합산 데이터 미리 계산 (브랜드/매체 합산, 지표 계산 전)
+  var bkAll = brandKeys();
+  var rawByDay = {};
+  for (var di = 0; di < dayKeysAll.length; di++) {
+    var dKey = dayKeysAll[di];
+    var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+    for (var ci = 0; ci < ck.length; ci++) {
+      var chKey = ck[ci];
+      for (var bi2 = 0; bi2 < bkAll.length; bi2++) {
+        var dayData = getDayData(bkAll[bi2], chKey, dKey);
+        s.cost        += dayData.cost;
+        s.revenue     += dayData.revenue;
+        s.clicks      += dayData.clicks;
+        s.impressions += dayData.impressions;
+        s.conversions += dayData.conversions;
+      }
+    }
+    rawByDay[dKey] = s;
+  }
+
+  // 주간(월~일) / 월간 버킷 구성
+  var buckets = buildBuckets(dayKeysAll, chartGranularity);
+  var DAYS = buckets.map(function(b){ return b.label; });
+
+  function sumBucket(keys, byDayMap) {
+    var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+    for (var i = 0; i < keys.length; i++) {
+      var d2 = byDayMap[keys[i]];
+      if (!d2) continue;
+      s.cost        += d2.cost;
+      s.revenue     += d2.revenue;
+      s.clicks      += d2.clicks;
+      s.impressions += d2.impressions;
+      s.conversions += d2.conversions;
+    }
+    return s;
+  }
+
+  // Build daily/weekly/monthly series per metric
   var series = [];
   for (var mi = 0; mi < activeMets.length; mi++) {
     var metKey = activeMets[mi].key;
     var vals = [];
-    for (var di = 0; di < DAYS.length; di++) {
-      var dStr = new Date(dateFrom);
-      dStr.setDate(dStr.getDate() + di);
-      var dKey = dStr.toISOString().slice(0, 10);
-
-      var s = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
-      for (var ci = 0; ci < ck.length; ci++) {
-        var chKey = ck[ci];
-        var bk2 = brandKeys();
-        for (var bi2 = 0; bi2 < bk2.length; bi2++) {
-          var brKey = bk2[bi2];
-          var dayData = getDayData(brKey, chKey, dKey);
-          s.cost        += dayData.cost;
-          s.revenue     += dayData.revenue;
-          s.clicks      += dayData.clicks;
-          s.impressions += dayData.impressions;
-          s.conversions += dayData.conversions;
-        }
-      }
+    for (var bidx = 0; bidx < buckets.length; bidx++) {
+      var s = sumBucket(buckets[bidx].keys, rawByDay);
       vals.push(calc(s)[metKey] || 0);
     }
     series.push({meta: activeMets[mi], values: vals, isPrev: false});
   }
 
-  // 전주 비교 시리즈 추가
+  // 전기 비교 시리즈 추가 (일별=전주, 주간=전주, 월간=전월 — 버킷 개수만큼 이전으로 시프트)
   if (prevWeekMode) {
-    var prevDays = [];
-    for (var di = 0; di < DAYS.length; di++) {
-      var pd = new Date(dateFrom);
-      pd.setDate(pd.getDate() + di - 7);
-      prevDays.push(pd.toISOString().slice(0, 10));
+    var shiftDays = chartGranularity === 'month' ? null : (chartGranularity === 'week' ? 7 * buckets.length : 7);
+    var rawByDayPrev = {};
+    var prevDayKeysAll = [];
+
+    if (chartGranularity === 'month') {
+      // 전월: 각 버킷(월)에 대해 정확히 1개월 전 같은 일자 범위로 계산
+      for (var bidx = 0; bidx < buckets.length; bidx++) {
+        var firstDay = new Date(buckets[bidx].keys[0]);
+        var prevMonthDate = new Date(firstDay.getFullYear(), firstDay.getMonth() - 1, 1);
+        var pm = prevMonthDate.getFullYear() + '-' + String(prevMonthDate.getMonth()+1).padStart(2,'0');
+        var lastDayOfPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth()+1, 0).getDate();
+        var pKeys = [];
+        for (var dd = 1; dd <= lastDayOfPrevMonth; dd++) {
+          pKeys.push(pm + '-' + String(dd).padStart(2,'0'));
+        }
+        prevDayKeysAll = prevDayKeysAll.concat(pKeys);
+      }
+    } else {
+      for (var i = 0; i < dayKeysAll.length; i++) {
+        var pd = new Date(dayKeysAll[i]);
+        pd.setDate(pd.getDate() - 7);
+        prevDayKeysAll.push(pd.toISOString().slice(0, 10));
+      }
     }
+
+    for (var i = 0; i < prevDayKeysAll.length; i++) {
+      var pKey = prevDayKeysAll[i];
+      var s2 = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
+      for (var ci = 0; ci < ck.length; ci++) {
+        var chKey2 = ck[ci];
+        for (var bi3 = 0; bi3 < bkAll.length; bi3++) {
+          var dayData2 = getDayData(bkAll[bi3], chKey2, pKey);
+          s2.cost        += dayData2.cost;
+          s2.revenue     += dayData2.revenue;
+          s2.clicks      += dayData2.clicks;
+          s2.impressions += dayData2.impressions;
+          s2.conversions += dayData2.conversions;
+        }
+      }
+      rawByDayPrev[pKey] = s2;
+    }
+
+    // 이전 기간도 같은 버킷 구조로 묶기 (월간은 별도로 1:1 매핑된 prevDayKeysAll 사용)
+    var prevBuckets;
+    if (chartGranularity === 'month') {
+      // prevDayKeysAll은 버킷별로 이어붙여 있으므로 각 버킷 길이만큼 슬라이스
+      prevBuckets = [];
+      var offset = 0;
+      for (var bidx = 0; bidx < buckets.length; bidx++) {
+        var firstDay = new Date(buckets[bidx].keys[0]);
+        var prevMonthDate = new Date(firstDay.getFullYear(), firstDay.getMonth() - 1, 1);
+        var lastDayOfPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth()+1, 0).getDate();
+        prevBuckets.push(prevDayKeysAll.slice(offset, offset + lastDayOfPrevMonth));
+        offset += lastDayOfPrevMonth;
+      }
+    } else {
+      // day/week: prevDayKeysAll은 dayKeysAll과 1:1 대응 (각각 7일 전) → 같은 버킷 구조로 재구성
+      var prevByOriginal = {};
+      for (var i = 0; i < dayKeysAll.length; i++) prevByOriginal[dayKeysAll[i]] = prevDayKeysAll[i];
+      prevBuckets = buckets.map(function(b){ return b.keys.map(function(k){ return prevByOriginal[k]; }); });
+    }
+
     for (var mi = 0; mi < activeMets.length; mi++) {
       var metKey2 = activeMets[mi].key;
       var pvals = [];
-      for (var di = 0; di < prevDays.length; di++) {
-        var ps = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0};
-        for (var ci = 0; ci < ck.length; ci++) {
-          var chKey2 = ck[ci];
-          var bk3 = brandKeys();
-          for (var bi3 = 0; bi3 < bk3.length; bi3++) {
-            var dayData2 = getDayData(bk3[bi3], chKey2, prevDays[di]);
-            ps.cost        += dayData2.cost;
-            ps.revenue     += dayData2.revenue;
-            ps.clicks      += dayData2.clicks;
-            ps.impressions += dayData2.impressions;
-            ps.conversions += dayData2.conversions;
-          }
-        }
-        pvals.push(calc(ps)[metKey2] || 0);
+      for (var bidx = 0; bidx < prevBuckets.length; bidx++) {
+        var s3 = sumBucket(prevBuckets[bidx], rawByDayPrev);
+        pvals.push(calc(s3)[metKey2] || 0);
       }
+      var prevLabel = chartGranularity === 'month' ? '전월 ' : chartGranularity === 'week' ? '전주 ' : '전주 ';
       series.push({
-        meta: {key: activeMets[mi].key, label: '전주 ' + activeMets[mi].label, type: activeMets[mi].type, color: 'rgba(160,160,160,0.7)'},
+        meta: {key: activeMets[mi].key, label: prevLabel + activeMets[mi].label, type: activeMets[mi].type, color: 'rgba(160,160,160,0.7)'},
         values: pvals,
         isPrev: true
       });
@@ -1942,6 +2092,21 @@ var selectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','
 var campSelectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
 var dailySelectedCols = ['cost','revenue','roas','conversions','cpa','cvr','clicks','cpc','ctr','impressions','cpm'];
 var dailyPrevMode = false;
+var dailyGranularity = 'day'; // 'day' | 'week' | 'month'
+
+function setDailyGranularity(g) {
+  dailyGranularity = g;
+  var map = {day:'dailyGranDayBtn', week:'dailyGranWeekBtn', month:'dailyGranMonthBtn'};
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var btn = document.getElementById(map[keys[i]]);
+    if (btn) btn.classList.toggle('active', keys[i] === g);
+  }
+  var titleMap = {day:'일자별 데이터', week:'주간별 데이터', month:'월간별 데이터'};
+  var title = document.getElementById('dailyTableTitle');
+  if (title) title.textContent = titleMap[g];
+  renderDailyTable(chKeys());
+}
 
 function buildDailyColDropdown() {
   var html = '';
@@ -2209,7 +2374,7 @@ function renderDailyTable(ck) {
   var bk = brandKeys();
 
   // thead
-  var headHtml = '<th style="cursor:default">날짜</th>';
+  var headHtml = '<th style="cursor:default">' + (dailyGranularity === 'day' ? '날짜' : dailyGranularity === 'week' ? '주' : '월') + '</th>';
   for (var i = 0; i < activeCols.length; i++) {
     headHtml += '<th style="cursor:default">' + activeCols[i].label + '</th>';
   }
@@ -2224,15 +2389,22 @@ function renderDailyTable(ck) {
     dayKeys.push(d.toISOString().slice(0, 10));
     d.setDate(d.getDate() + 1);
   }
-  var spanDays = dayKeys.length;
+
+  // 일별 raw 합산 미리 계산
+  var rawByDay = {};
+  for (var di = 0; di < dayKeys.length; di++) {
+    rawByDay[dayKeys[di]] = sumDayAcross(bk, ck, dayKeys[di]);
+  }
+
+  var buckets = buildBuckets(dayKeys, dailyGranularity);
 
   var html = '';
   var total = {cost:0, revenue:0, clicks:0, impressions:0, conversions:0, app_installs:0};
   var anyRow = false;
 
-  for (var di = 0; di < dayKeys.length; di++) {
-    var dKey = dayKeys[di];
-    var s = sumDayAcross(bk, ck, dKey);
+  for (var bidx = 0; bidx < buckets.length; bidx++) {
+    var bucket = buckets[bidx];
+    var s = sumBucketKeys(bucket.keys, rawByDay);
     if (s.impressions === 0 && s.conversions === 0) continue;
     anyRow = true;
     total.cost         += s.cost;
@@ -2243,23 +2415,37 @@ function renderDailyTable(ck) {
     total.app_installs += s.app_installs;
 
     var dCalc = calc(s);
-    var mm = dKey.slice(5,7), dd = dKey.slice(8,10);
-    html += '<tr><td style="font-family:\'Inter\',sans-serif;font-weight:500">' + mm + '/' + dd + '</td>';
+    html += '<tr><td style="font-family:\'Inter\',sans-serif;font-weight:500">' + bucket.label + '</td>';
     for (var j = 0; j < activeCols.length; j++) {
       var col = activeCols[j];
       html += '<td>' + fmt(dCalc[col.key], col.type) + '</td>';
     }
     html += '</tr>';
 
-    // 이전 동기간 서브 행 (같은 날, spanDays 만큼 이전)
+    // 이전 동기간 서브 행 (버킷 길이만큼 이전으로 시프트한 같은 길이의 버킷)
     if (dailyPrevMode) {
-      var pDate = new Date(dKey);
-      pDate.setDate(pDate.getDate() - spanDays);
-      var pKey = pDate.toISOString().slice(0, 10);
-      var ps = sumDayAcross(bk, ck, pKey);
+      var prevKeys;
+      if (dailyGranularity === 'month') {
+        var firstDay = new Date(bucket.keys[0]);
+        var prevMonthDate = new Date(firstDay.getFullYear(), firstDay.getMonth() - 1, 1);
+        var lastDayOfPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth()+1, 0).getDate();
+        prevKeys = [];
+        for (var dd = 1; dd <= lastDayOfPrevMonth; dd++) {
+          prevKeys.push(prevMonthDate.getFullYear() + '-' + String(prevMonthDate.getMonth()+1).padStart(2,'0') + '-' + String(dd).padStart(2,'0'));
+        }
+      } else {
+        prevKeys = bucket.keys.map(function(k){
+          var pd = new Date(k); pd.setDate(pd.getDate() - 7);
+          return pd.toISOString().slice(0, 10);
+        });
+      }
+      var rawByDayPrev = {};
+      for (var pi = 0; pi < prevKeys.length; pi++) rawByDayPrev[prevKeys[pi]] = sumDayAcross(bk, ck, prevKeys[pi]);
+      var ps = sumBucketKeys(prevKeys, rawByDayPrev);
       var pCalc = calc(ps);
+      var prevLabel = dailyGranularity === 'month' ? '↳ 전월' : '↳ 이전 동기간';
       html += '<tr style="background:rgba(59,125,246,0.07)">';
-      html += '<td style="font-size:10px;color:#3b7de9;font-weight:500;font-family:\'Noto Sans KR\',sans-serif">↳ 이전 동기간</td>';
+      html += '<td style="font-size:10px;color:#3b7de9;font-weight:500;font-family:\'Noto Sans KR\',sans-serif">' + prevLabel + '</td>';
       for (var j = 0; j < activeCols.length; j++) {
         var col = activeCols[j];
         html += '<td style="font-size:11px;color:#374151;font-family:\'Inter\',sans-serif;font-variant-numeric:tabular-nums">' + fmt(pCalc[col.key], col.type) + changeArrow(dCalc[col.key], pCalc[col.key], col.type) + '</td>';
@@ -3795,11 +3981,32 @@ function toggleBudgetSection() {
 function toggleBudgetEdit() {}
 function saveBudget() {}
 
+// ── 상단 공지 (시트 A1 셀) ────────────────────────────────────────────────────
+var NOTICE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1768541444&single=true&output=csv';
+
+function loadNotice() {
+  fetch(NOTICE_URL)
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var rows = parseCSV(text);
+      var firstLine = text.trim().split('\n')[0] || '';
+      var a1 = splitCSVLine(firstLine)[0] || '';
+      a1 = a1.trim();
+      var banner = document.getElementById('noticeBanner');
+      var txt    = document.getElementById('noticeText');
+      if (!a1) { banner.style.display = 'none'; return; }
+      txt.textContent = a1;
+      banner.style.display = 'flex';
+    })
+    .catch(function(){ /* 공지 로드 실패 시 무시 */ });
+}
+
 buildMetricSelector();
 buildColDropdown();
 buildBudgetPeriodSelector();
 restoreDateRange();
 renderWithData();
+loadNotice();
 </script>
 <!-- 이미지 모달 -->
 <div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out" onclick="closeImgModal()">
