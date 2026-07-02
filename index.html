@@ -221,6 +221,14 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
 </div>
 
 <div class="page-wrap">
+<!-- 메인 탭 -->
+<div style="display:flex;gap:4px;margin-bottom:16px">
+  <button id="mainTabPerf" onclick="setMainTab('perf')" class="tab active" style="font-size:13px;padding:8px 18px;border-radius:8px">📊 브랜드별 성과</button>
+  <button id="mainTabKw" onclick="setMainTab('kw')" class="tab" style="font-size:13px;padding:8px 18px;border-radius:8px">🔍 그룹/키워드별 성과</button>
+</div>
+
+<!-- 브랜드별 성과 섹션 -->
+<div id="perfSection">
 <div class="sticky-filters">
 <div class="header">
   <div>
@@ -421,6 +429,35 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
     <span id="metaCreativePeriod" style="font-size:11px;color:var(--muted);font-weight:400"></span>
   </div>
   <div id="metaCreativeTree" style="padding:8px 0"></div>
+</div>
+
+</div><!-- /perfSection -->
+
+<!-- 그룹/키워드별 성과 섹션 -->
+<div id="kwSection" style="display:none">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-family:'Inter',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">브랜드</span>
+    <div class="tab-group" id="kwBrandTabs">
+      <button class="tab active" data-kw-brand="minoxell" onclick="setKwBrand(this)"><span class="dot" style="background:#ea580c"></span>현대약품</button>
+      <button class="tab" data-kw-brand="skechers" onclick="setKwBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-family:'Inter',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">캠페인유형</span>
+    <div class="tab-group" id="kwTypeTabs"></div>
+  </div>
+  <div class="table-section">
+    <div class="table-header" style="display:flex;align-items:center;justify-content:space-between">
+      <span id="kwTableTitle">키워드별 성과</span>
+      <span style="font-size:11px;color:var(--muted)" id="kwDataInfo"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr id="kwTableHead"></tr></thead>
+        <tbody id="kwTableBody"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 </div><!-- /page-wrap -->
@@ -3309,6 +3346,10 @@ function render() {
   renderTable(cm, ck);
   renderCampaignTable();
   renderMetaCreatives();
+  // 키워드 탭이 열려있으면 날짜 변경 시 같이 갱신
+  if (document.getElementById('kwSection') && document.getElementById('kwSection').style.display !== 'none' && kwCache[kwState.brand]) {
+    renderKwTable();
+  }
 }
 
 function setBrand(btn) {
@@ -4213,6 +4254,147 @@ function deleteMemoEntry(id) {
   })
   .catch(function(){ alert('메모 삭제에 실패했어요.'); });
 }
+
+// ── 그룹/키워드별 성과 탭 ─────────────────────────────────────────────────────
+var KW_URLS = {
+  minoxell: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=2030869780&single=true&output=csv',
+  skechers: ''
+};
+var kwCache   = {};
+var kwState   = {brand:'minoxell', type:'all'};
+var kwExpCamp = {};
+var kwExpGrp  = {};
+
+function setMainTab(tab) {
+  document.getElementById('perfSection').style.display = tab === 'perf' ? '' : 'none';
+  document.getElementById('kwSection').style.display   = tab === 'kw'   ? '' : 'none';
+  document.getElementById('mainTabPerf').classList.toggle('active', tab === 'perf');
+  document.getElementById('mainTabKw').classList.toggle('active',   tab === 'kw');
+  if (tab === 'kw') loadKwData(kwState.brand, renderKwTable);
+}
+
+function setKwBrand(btn) {
+  document.querySelectorAll('#kwBrandTabs .tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  kwState.brand = btn.getAttribute('data-kw-brand');
+  kwState.type  = 'all';
+  kwExpCamp = {}; kwExpGrp = {};
+  loadKwData(kwState.brand, renderKwTable);
+}
+
+function setKwType(type) {
+  kwState.type = type;
+  kwExpCamp = {}; kwExpGrp = {};
+  renderKwTable();
+}
+
+function loadKwData(brand, callback) {
+  if (kwCache[brand]) { callback(); return; }
+  var url = KW_URLS[brand];
+  if (!url) {
+    document.getElementById('kwDataInfo').textContent = '데이터 준비 중';
+    document.getElementById('kwTableBody').innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터 준비 중이에요</td></tr>';
+    return;
+  }
+  document.getElementById('kwDataInfo').textContent = '불러오는 중...';
+  fetch(url).then(function(r){ return r.text(); })
+    .then(function(text){ kwCache[brand] = parseCSV(text); callback(); })
+    .catch(function(){ document.getElementById('kwDataInfo').textContent = '로드 실패'; });
+}
+
+function renderKwTable() {
+  var rows = kwCache[kwState.brand] || [];
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+
+  // 캠페인유형 탭 빌드
+  var typeSet = {};
+  rows.forEach(function(r){ if (r['캠페인유형']) typeSet[r['캠페인유형']] = 1; });
+  var types = ['all'].concat(Object.keys(typeSet).sort());
+  var typeHtml = '';
+  types.forEach(function(t){
+    typeHtml += '<button class="tab'+(kwState.type===t?' active':'')+'" onclick="setKwType(\''+t+'\')" style="font-size:12px;padding:5px 12px">'+(t==='all'?'전체':t)+'</button>';
+  });
+  document.getElementById('kwTypeTabs').innerHTML = typeHtml;
+
+  // 날짜 파싱 헬퍼 (2026.06.01. → 2026-06-01)
+  function parseDate(raw) {
+    if (!raw) return '';
+    return raw.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
+  }
+
+  // 필터 (날짜 + 캠페인유형)
+  var filtered = rows.filter(function(r){
+    if (kwState.type !== 'all' && r['캠페인유형'] !== kwState.type) return false;
+    var d = parseDate(r['일별']);
+    if (d && (d < dateFrom || d > dateTo)) return false;
+    return true;
+  });
+
+  // 계층 집계
+  var hier = {};
+  filtered.forEach(function(r){
+    var camp=r['캠페인']||'(미분류)', grp=r['광고그룹']||'(미분류)', kw=r['검색어']||'';
+    var cost=Number(r['총비용'])||0, rev=Number(r['구매완료 전환매출액(원)'])||0;
+    var conv=Number(r['구매완료 전환수'])||0, click=Number(r['클릭수'])||0, impr=Number(r['노출수'])||0;
+    if (!hier[camp]) hier[camp]={cost:0,rev:0,conv:0,click:0,impr:0,groups:{}};
+    hier[camp].cost+=cost; hier[camp].rev+=rev; hier[camp].conv+=conv; hier[camp].click+=click; hier[camp].impr+=impr;
+    if (!hier[camp].groups[grp]) hier[camp].groups[grp]={cost:0,rev:0,conv:0,click:0,impr:0,kws:[]};
+    hier[camp].groups[grp].cost+=cost; hier[camp].groups[grp].rev+=rev; hier[camp].groups[grp].conv+=conv; hier[camp].groups[grp].click+=click; hier[camp].groups[grp].impr+=impr;
+    if (kw) hier[camp].groups[grp].kws.push({kw:kw,cost:cost,rev:rev,conv:conv,click:click,impr:impr});
+  });
+
+  document.getElementById('kwDataInfo').textContent = dateFrom.replace(/-/g,'.') + ' — ' + dateTo.replace(/-/g,'.') + ' · ' + filtered.length.toLocaleString()+'행';
+  document.getElementById('kwTableTitle').textContent = (kwState.brand==='minoxell'?'현대약품':'스케쳐스')+' 키워드별 성과';
+
+  // 헤더
+  var thS='padding:9px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;text-align:right';
+  var head='<th style="'+thS+';text-align:left;position:sticky;left:0;z-index:2">캠페인 / 그룹 / 검색어</th>';
+  ['총비용','매출','ROAS','전환수','CPA','클릭수','노출수'].forEach(function(l){ head+='<th style="'+thS+'">'+l+'</th>'; });
+  document.getElementById('kwTableHead').innerHTML = head;
+
+  var fmtW=function(n){ return '₩'+Math.round(n).toLocaleString('ko-KR'); };
+  var fmtN=function(n){ return Math.round(n).toLocaleString('ko-KR'); };
+  var fmtR=function(c,r){ return c>0?Math.round(r/c*100)+'%':'0%'; };
+  var fmtC=function(c,n){ return n>0?'₩'+Math.round(c/n).toLocaleString('ko-KR'):'-'; };
+  var td  =function(v){ return '<td style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">'+v+'</td>'; };
+  var tdS =function(v){ return '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">'+v+'</td>'; };
+  var tdKw=function(v){ return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">'+v+'</td>'; };
+
+  var html='', totC=0,totR=0,totN=0,totCl=0,totIm=0;
+  var camps=Object.keys(hier).sort(function(a,b){ return hier[b].cost-hier[a].cost; });
+
+  camps.forEach(function(cn){
+    var c=hier[cn]; totC+=c.cost; totR+=c.rev; totN+=c.conv; totCl+=c.click; totIm+=c.impr;
+    var isExp=!!kwExpCamp[cn];
+    html+='<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="kwToggleCamp(\''+cn.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><td style="padding:9px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:500;white-space:nowrap;position:sticky;left:0;background:var(--bg2);z-index:1"><span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">'+(Object.keys(c.groups).length?(isExp?'▼':'▶'):'')+'</span>'+cn+'</td>';
+    html+=td(fmtW(c.cost))+td(fmtW(c.rev))+td(fmtR(c.cost,c.rev))+td(fmtN(c.conv))+td(fmtC(c.cost,c.conv))+td(fmtN(c.click))+td(fmtN(c.impr))+'</tr>';
+    if (!isExp) return;
+
+    Object.keys(c.groups).sort(function(a,b){ return c.groups[b].cost-c.groups[a].cost; }).forEach(function(gn){
+      var g=c.groups[gn], gKey=cn+'__'+gn, gExp=!!kwExpGrp[gKey];
+      html+='<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);cursor:pointer" onclick="event.stopPropagation();kwToggleGrp(\''+gKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;white-space:nowrap;position:sticky;left:0;background:rgba(245,246,248,1);z-index:1"><span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">'+(g.kws.length?(gExp?'▼':'▶'):'')+'</span>'+gn+'</td>';
+      html+=tdS(fmtW(g.cost))+tdS(fmtW(g.rev))+tdS(fmtR(g.cost,g.rev))+tdS(fmtN(g.conv))+tdS(fmtC(g.cost,g.conv))+tdS(fmtN(g.click))+tdS(fmtN(g.impr))+'</tr>';
+      if (!gExp) return;
+
+      g.kws.slice().sort(function(a,b){ return b.cost-a.cost; }).forEach(function(k){
+        html+='<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()"><td style="padding:5px 14px 5px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;white-space:nowrap;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ '+k.kw+'</td>';
+        html+=tdKw(fmtW(k.cost))+tdKw(fmtW(k.rev))+tdKw(fmtR(k.cost,k.rev))+tdKw(fmtN(k.conv))+tdKw(fmtC(k.cost,k.conv))+tdKw(fmtN(k.click))+tdKw(fmtN(k.impr))+'</tr>';
+      });
+    });
+  });
+
+  // 합계
+  if (camps.length>1) {
+    var tS='padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;border-top:2px solid var(--border2);background:var(--bg3)';
+    html+='<tr><td style="'+tS+';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:1">합계</td>';
+    html+='<td style="'+tS+'">'+fmtW(totC)+'</td><td style="'+tS+'">'+fmtW(totR)+'</td><td style="'+tS+'">'+fmtR(totC,totR)+'</td><td style="'+tS+'">'+fmtN(totN)+'</td><td style="'+tS+'">'+fmtC(totC,totN)+'</td><td style="'+tS+'">'+fmtN(totCl)+'</td><td style="'+tS+'">'+fmtN(totIm)+'</td></tr>';
+  }
+  document.getElementById('kwTableBody').innerHTML = html;
+}
+
+function kwToggleCamp(key) { kwExpCamp[key]=!kwExpCamp[key]; renderKwTable(); }
+function kwToggleGrp(key)  { kwExpGrp[key] =!kwExpGrp[key];  renderKwTable(); }
 
 buildMetricSelector();
 buildColDropdown();
