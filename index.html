@@ -227,8 +227,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   <button id="mainTabKw" onclick="setMainTab('kw')" class="tab" style="font-size:13px;padding:8px 18px;border-radius:8px">🔍 그룹/키워드별 성과</button>
 </div>
 
-<!-- 브랜드별 성과 섹션 -->
-<div id="perfSection">
+<!-- 공통 sticky 필터 (날짜, 브랜드/매체 탭) -->
 <div class="sticky-filters">
 <div class="header">
   <div>
@@ -257,6 +256,11 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
     <button class="apply-btn" onclick="applyRange()">적용</button>
   </div>
 </div>
+
+</div><!-- /sticky-filters -->
+
+<!-- 브랜드별 성과 섹션 -->
+<div id="perfSection">
 
 <div class="filter-row">
   <span class="filter-label">브랜드</span>
@@ -306,7 +310,7 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
   </div>
 </div>
 
-</div><!-- /sticky-filters -->
+</div><!-- /채널탭 -->
 
 <div class="budget-section" id="budgetSection">
   <div class="budget-header" onclick="toggleBudgetSection()" style="cursor:pointer">
@@ -442,9 +446,13 @@ tbody td:first-child { text-align: left; font-family: 'Noto Sans KR', sans-serif
       <button class="tab" data-kw-brand="skechers" onclick="setKwBrand(this)"><span class="dot" style="background:#e11d48"></span>스케쳐스</button>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">
     <span style="font-family:'Inter',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">캠페인유형</span>
     <div class="tab-group" id="kwTypeTabs"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-family:'Inter',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">캠페인</span>
+    <select id="kwCampSelect" onchange="setKwCamp(this.value)" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);outline:none;cursor:pointer;max-width:400px"></select>
   </div>
   <div class="table-section">
     <div class="table-header" style="display:flex;align-items:center;justify-content:space-between">
@@ -3346,9 +3354,9 @@ function render() {
   renderTable(cm, ck);
   renderCampaignTable();
   renderMetaCreatives();
-  // 키워드 탭이 열려있으면 날짜 변경 시 같이 갱신
-  if (document.getElementById('kwSection') && document.getElementById('kwSection').style.display !== 'none' && kwCache[kwState.brand]) {
-    renderKwTable();
+  // 키워드 탭이 열려있으면 날짜 변경 시 같이 갱신 (스케쳐스는 새 월 시트 로드 포함)
+  if (document.getElementById('kwSection') && document.getElementById('kwSection').style.display !== 'none') {
+    loadKwData(kwState.brand, renderKwTable);
   }
 }
 
@@ -4257,12 +4265,23 @@ function deleteMemoEntry(id) {
 
 // ── 그룹/키워드별 성과 탭 ─────────────────────────────────────────────────────
 var KW_URLS = {
-  minoxell: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=2030869780&single=true&output=csv',
-  skechers: ''
+  minoxell: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=2030869780&single=true&output=csv'
 };
-var kwCache   = {};
-var kwState   = {brand:'minoxell', type:'all'};
-var kwExpCamp = {};
+
+// 스케쳐스 키워드: 월별 시트 (gid 추가만 하면 자동 확장)
+var SKECHERS_KW_SHEETS = {
+  '2026-06': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=0&single=true&output=csv',
+  '2026-07': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=396352050&single=true&output=csv',
+  '2026-08': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=151179543&single=true&output=csv',
+  '2026-09': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=3734156&single=true&output=csv',
+  '2026-10': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=589543528&single=true&output=csv',
+  '2026-11': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=1980248499&single=true&output=csv',
+  '2026-12': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTLP5jIvHXrEW65oEMb7njRhIxGhzVIebm4OMmIAvRdi_YsCOVnZS95SVSk8Zl80I8v3MsKCrIdNAnK/pub?gid=610269517&single=true&output=csv'
+};
+
+var kwCache   = {};   // { 'minoxell': rows[], 'skechers_2026-06': rows[], ... }
+var kwState   = {brand:'minoxell', type:'all', camp:'all'};
+var kwSort    = {key:'cost', asc:false};
 var kwExpGrp  = {};
 
 function setMainTab(tab) {
@@ -4278,123 +4297,238 @@ function setKwBrand(btn) {
   btn.classList.add('active');
   kwState.brand = btn.getAttribute('data-kw-brand');
   kwState.type  = 'all';
-  kwExpCamp = {}; kwExpGrp = {};
+  kwState.camp  = 'all';
+  kwExpGrp = {};
   loadKwData(kwState.brand, renderKwTable);
 }
 
 function setKwType(type) {
   kwState.type = type;
-  kwExpCamp = {}; kwExpGrp = {};
+  kwState.camp = 'all';
+  kwExpGrp = {};
   renderKwTable();
 }
 
-function loadKwData(brand, callback) {
-  if (kwCache[brand]) { callback(); return; }
-  var url = KW_URLS[brand];
-  if (!url) {
-    document.getElementById('kwDataInfo').textContent = '데이터 준비 중';
-    document.getElementById('kwTableBody').innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터 준비 중이에요</td></tr>';
-    return;
-  }
-  document.getElementById('kwDataInfo').textContent = '불러오는 중...';
-  fetch(url).then(function(r){ return r.text(); })
-    .then(function(text){ kwCache[brand] = parseCSV(text); callback(); })
-    .catch(function(){ document.getElementById('kwDataInfo').textContent = '로드 실패'; });
+function setKwCamp(camp) {
+  kwState.camp = camp;
+  kwExpGrp = {};
+  renderKwTable();
 }
 
-function renderKwTable() {
-  var rows = kwCache[kwState.brand] || [];
+function sortKwTable(key) {
+  if (kwSort.key === key) { kwSort.asc = !kwSort.asc; }
+  else { kwSort.key = key; kwSort.asc = false; }
+  renderKwTable();
+}
+
+// 날짜 범위에 필요한 월 목록 반환 ['2026-06', '2026-07', ...]
+function getMonthsInRange(dateFrom, dateTo) {
+  var months = [];
+  var d = new Date(dateFrom.slice(0,7) + '-01');
+  var end = new Date(dateTo.slice(0,7) + '-01');
+  while (d <= end) {
+    months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+    d.setMonth(d.getMonth() + 1);
+  }
+  return months;
+}
+
+function loadKwData(brand, callback) {
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo   = document.getElementById('dateTo').value;
 
-  // 캠페인유형 탭 빌드
+  if (brand === 'minoxell') {
+    if (kwCache['minoxell']) { callback(); return; }
+    var url = KW_URLS.minoxell;
+    document.getElementById('kwDataInfo').textContent = '불러오는 중...';
+    fetch(url).then(function(r){ return r.text(); })
+      .then(function(text){ kwCache['minoxell'] = parseCSV(text); callback(); })
+      .catch(function(){ document.getElementById('kwDataInfo').textContent = '로드 실패'; });
+
+  } else if (brand === 'skechers') {
+    // 날짜 범위에 해당하는 월만 로드
+    var months = getMonthsInRange(dateFrom, dateTo);
+    var needed = months.filter(function(m){ return SKECHERS_KW_SHEETS[m]; });
+    var missing = needed.filter(function(m){ return !kwCache['skechers_' + m]; });
+
+    if (missing.length === 0) { callback(); return; }
+
+    document.getElementById('kwDataInfo').textContent = '불러오는 중... (0/' + missing.length + ')';
+    var loaded = 0;
+    missing.forEach(function(m){
+      fetch(SKECHERS_KW_SHEETS[m]).then(function(r){ return r.text(); })
+        .then(function(text){
+          kwCache['skechers_' + m] = parseCSV(text);
+          loaded++;
+          document.getElementById('kwDataInfo').textContent = '불러오는 중... (' + loaded + '/' + missing.length + ')';
+          if (loaded === missing.length) callback();
+        })
+        .catch(function(){
+          loaded++;
+          if (loaded === missing.length) callback();
+        });
+    });
+  }
+}
+
+function renderKwTable() {
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo   = document.getElementById('dateTo').value;
+
+  // 브랜드에 따라 rows 구성
+  var rows = [];
+  if (kwState.brand === 'minoxell') {
+    rows = kwCache['minoxell'] || [];
+  } else if (kwState.brand === 'skechers') {
+    var months = getMonthsInRange(dateFrom, dateTo);
+    months.forEach(function(m){
+      var cached = kwCache['skechers_' + m];
+      if (cached) rows = rows.concat(cached);
+    });
+  }
+
+  // 날짜 파싱 헬퍼
+  function parseDate(raw) {
+    return raw ? raw.replace(/\./g, '-').replace(/-$/, '').slice(0, 10) : '';
+  }
+
+  // 캠페인유형 탭 빌드 (필터 전)
   var typeSet = {};
   rows.forEach(function(r){ if (r['캠페인유형']) typeSet[r['캠페인유형']] = 1; });
-  var types = ['all'].concat(Object.keys(typeSet).sort());
   var typeHtml = '';
-  types.forEach(function(t){
+  ['all'].concat(Object.keys(typeSet).sort()).forEach(function(t){
     typeHtml += '<button class="tab'+(kwState.type===t?' active':'')+'" onclick="setKwType(\''+t+'\')" style="font-size:12px;padding:5px 12px">'+(t==='all'?'전체':t)+'</button>';
   });
   document.getElementById('kwTypeTabs').innerHTML = typeHtml;
 
-  // 날짜 파싱 헬퍼 (2026.06.01. → 2026-06-01)
-  function parseDate(raw) {
-    if (!raw) return '';
-    return raw.replace(/\./g, '-').replace(/-$/, '').slice(0, 10);
-  }
-
-  // 필터 (날짜 + 캠페인유형)
-  var filtered = rows.filter(function(r){
+  // 날짜 + 유형 필터
+  var byType = rows.filter(function(r){
     if (kwState.type !== 'all' && r['캠페인유형'] !== kwState.type) return false;
     var d = parseDate(r['일별']);
-    if (d && (d < dateFrom || d > dateTo)) return false;
-    return true;
+    return !d || (d >= dateFrom && d <= dateTo);
   });
 
-  // 계층 집계
-  var hier = {};
+  // 캠페인 드롭박스 빌드 (유형 필터 적용 후)
+  var campSet = {};
+  byType.forEach(function(r){ if (r['캠페인']) campSet[r['캠페인']] = 1; });
+  var campKeys = Object.keys(campSet).sort();
+  var campHtml = '<option value="all">전체 (' + campKeys.length + '개)</option>';
+  campKeys.forEach(function(c){
+    campHtml += '<option value="'+c.replace(/"/g,'&quot;')+'"'+(kwState.camp===c?' selected':'')+'>'+c+'</option>';
+  });
+  document.getElementById('kwCampSelect').innerHTML = campHtml;
+  if (kwState.camp !== 'all') document.getElementById('kwCampSelect').value = kwState.camp;
+
+  // 캠페인 필터
+  var filtered = byType.filter(function(r){
+    return kwState.camp === 'all' || r['캠페인'] === kwState.camp;
+  });
+
+  document.getElementById('kwDataInfo').textContent = dateFrom.replace(/-/g,'.') + ' — ' + dateTo.replace(/-/g,'.') + ' · ' + filtered.length.toLocaleString() + '행';
+  document.getElementById('kwTableTitle').textContent = (kwState.brand==='minoxell'?'현대약품':'스케쳐스') + ' 그룹/키워드별 성과';
+
+  // 컬럼 정의
+  var COLS = [
+    {key:'cost',  label:'총비용',  fmt:function(d){ return '₩'+Math.round(d.cost).toLocaleString('ko-KR'); }},
+    {key:'rev',   label:'매출',    fmt:function(d){ return '₩'+Math.round(d.rev).toLocaleString('ko-KR'); }},
+    {key:'roas',  label:'ROAS',    fmt:function(d){ return d.cost>0?Math.round(d.rev/d.cost*100)+'%':'0%'; }},
+    {key:'conv',  label:'전환수',  fmt:function(d){ return Math.round(d.conv).toLocaleString('ko-KR'); }},
+    {key:'cvr',   label:'전환율',  fmt:function(d){ return d.click>0?(d.conv/d.click*100).toFixed(2)+'%':'-'; }},
+    {key:'cpa',   label:'CPA',     fmt:function(d){ return d.conv>0?'₩'+Math.round(d.cost/d.conv).toLocaleString('ko-KR'):'-'; }},
+    {key:'click', label:'클릭수',  fmt:function(d){ return Math.round(d.click).toLocaleString('ko-KR'); }},
+    {key:'cpc',   label:'CPC',     fmt:function(d){ return d.click>0?'₩'+Math.round(d.cost/d.click).toLocaleString('ko-KR'):'-'; }},
+    {key:'ctr',   label:'클릭률',  fmt:function(d){ return d.impr>0?(d.click/d.impr*100).toFixed(2)+'%':'-'; }},
+    {key:'impr',  label:'노출수',  fmt:function(d){ return Math.round(d.impr).toLocaleString('ko-KR'); }}
+  ];
+
+  // 정렬 화살표
+  function arr(key){ return kwSort.key===key?(kwSort.asc?' ↑':' ↓'):' <span style="opacity:.25">↕</span>'; }
+
+  // 헤더
+  var thS = 'padding:9px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;cursor:pointer;user-select:none;text-align:right';
+  var head = '<th style="'+thS+';text-align:left;position:sticky;left:0;z-index:2;cursor:default">그룹 / 검색어</th>';
+  COLS.forEach(function(c){ head += '<th style="'+thS+'" onclick="sortKwTable(\''+c.key+'\')">'+c.label+arr(c.key)+'</th>'; });
+  document.getElementById('kwTableHead').innerHTML = head;
+
+  // 그룹 단위로 집계 (캠페인 행 없음)
+  var grpMap = {}; // {grpKey: {camp, grp, data, kws:{}}}
   filtered.forEach(function(r){
     var camp=r['캠페인']||'(미분류)', grp=r['광고그룹']||'(미분류)', kw=r['검색어']||'';
     var cost=Number(r['총비용'])||0, rev=Number(r['구매완료 전환매출액(원)'])||0;
     var conv=Number(r['구매완료 전환수'])||0, click=Number(r['클릭수'])||0, impr=Number(r['노출수'])||0;
-    if (!hier[camp]) hier[camp]={cost:0,rev:0,conv:0,click:0,impr:0,groups:{}};
-    hier[camp].cost+=cost; hier[camp].rev+=rev; hier[camp].conv+=conv; hier[camp].click+=click; hier[camp].impr+=impr;
-    if (!hier[camp].groups[grp]) hier[camp].groups[grp]={cost:0,rev:0,conv:0,click:0,impr:0,kws:[]};
-    hier[camp].groups[grp].cost+=cost; hier[camp].groups[grp].rev+=rev; hier[camp].groups[grp].conv+=conv; hier[camp].groups[grp].click+=click; hier[camp].groups[grp].impr+=impr;
-    if (kw) hier[camp].groups[grp].kws.push({kw:kw,cost:cost,rev:rev,conv:conv,click:click,impr:impr});
+    var gKey = camp + '||' + grp;
+    if (!grpMap[gKey]) grpMap[gKey] = {camp:camp, grp:grp, cost:0,rev:0,conv:0,click:0,impr:0, kws:{}};
+    grpMap[gKey].cost+=cost; grpMap[gKey].rev+=rev; grpMap[gKey].conv+=conv; grpMap[gKey].click+=click; grpMap[gKey].impr+=impr;
+    if (kw) {
+      if (!grpMap[gKey].kws[kw]) grpMap[gKey].kws[kw] = {cost:0,rev:0,conv:0,click:0,impr:0};
+      grpMap[gKey].kws[kw].cost+=cost; grpMap[gKey].kws[kw].rev+=rev; grpMap[gKey].kws[kw].conv+=conv; grpMap[gKey].kws[kw].click+=click; grpMap[gKey].kws[kw].impr+=impr;
+    }
   });
 
-  document.getElementById('kwDataInfo').textContent = dateFrom.replace(/-/g,'.') + ' — ' + dateTo.replace(/-/g,'.') + ' · ' + filtered.length.toLocaleString()+'행';
-  document.getElementById('kwTableTitle').textContent = (kwState.brand==='minoxell'?'현대약품':'스케쳐스')+' 키워드별 성과';
+  // 정렬 값 계산
+  function sortVal(d, key) {
+    if (key==='roas')  return d.cost>0 ? d.rev/d.cost : 0;
+    if (key==='cvr')   return d.click>0 ? d.conv/d.click : 0;
+    if (key==='cpa')   return d.conv>0 ? d.cost/d.conv : Infinity;
+    if (key==='cpc')   return d.click>0 ? d.cost/d.click : Infinity;
+    if (key==='ctr')   return d.impr>0 ? d.click/d.impr : 0;
+    return d[key] || 0;
+  }
 
-  // 헤더
-  var thS='padding:9px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border2);background:var(--bg3);white-space:nowrap;text-align:right';
-  var head='<th style="'+thS+';text-align:left;position:sticky;left:0;z-index:2">캠페인 / 그룹 / 검색어</th>';
-  ['총비용','매출','ROAS','전환수','CPA','클릭수','노출수'].forEach(function(l){ head+='<th style="'+thS+'">'+l+'</th>'; });
-  document.getElementById('kwTableHead').innerHTML = head;
+  var grpList = Object.keys(grpMap).sort(function(a,b){
+    var av = sortVal(grpMap[a], kwSort.key), bv = sortVal(grpMap[b], kwSort.key);
+    return kwSort.asc ? av-bv : bv-av;
+  });
 
-  var fmtW=function(n){ return '₩'+Math.round(n).toLocaleString('ko-KR'); };
-  var fmtN=function(n){ return Math.round(n).toLocaleString('ko-KR'); };
-  var fmtR=function(c,r){ return c>0?Math.round(r/c*100)+'%':'0%'; };
-  var fmtC=function(c,n){ return n>0?'₩'+Math.round(c/n).toLocaleString('ko-KR'):'-'; };
-  var td  =function(v){ return '<td style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">'+v+'</td>'; };
-  var tdS =function(v){ return '<td style="padding:7px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#374151">'+v+'</td>'; };
-  var tdKw=function(v){ return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">'+v+'</td>'; };
+  var td  = function(v){ return '<td style="padding:9px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)">'+v+'</td>'; };
+  var tdS = function(v){ return '<td style="padding:5px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:11px;font-variant-numeric:tabular-nums;color:#4a5568">'+v+'</td>'; };
 
-  var html='', totC=0,totR=0,totN=0,totCl=0,totIm=0;
-  var camps=Object.keys(hier).sort(function(a,b){ return hier[b].cost-hier[a].cost; });
+  var html='', totD={cost:0,rev:0,conv:0,click:0,impr:0};
 
-  camps.forEach(function(cn){
-    var c=hier[cn]; totC+=c.cost; totR+=c.rev; totN+=c.conv; totCl+=c.click; totIm+=c.impr;
-    var isExp=!!kwExpCamp[cn];
-    html+='<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="kwToggleCamp(\''+cn.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><td style="padding:9px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:500;white-space:nowrap;position:sticky;left:0;background:var(--bg2);z-index:1"><span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">'+(Object.keys(c.groups).length?(isExp?'▼':'▶'):'')+'</span>'+cn+'</td>';
-    html+=td(fmtW(c.cost))+td(fmtW(c.rev))+td(fmtR(c.cost,c.rev))+td(fmtN(c.conv))+td(fmtC(c.cost,c.conv))+td(fmtN(c.click))+td(fmtN(c.impr))+'</tr>';
-    if (!isExp) return;
+  grpList.forEach(function(gKey){
+    var g = grpMap[gKey];
+    totD.cost+=g.cost; totD.rev+=g.rev; totD.conv+=g.conv; totD.click+=g.click; totD.impr+=g.impr;
+    var kwKeys = Object.keys(g.kws);
+    var gExp = !!kwExpGrp[gKey];
+    var safeKey = gKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
-    Object.keys(c.groups).sort(function(a,b){ return c.groups[b].cost-c.groups[a].cost; }).forEach(function(gn){
-      var g=c.groups[gn], gKey=cn+'__'+gn, gExp=!!kwExpGrp[gKey];
-      html+='<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.018);cursor:pointer" onclick="event.stopPropagation();kwToggleGrp(\''+gKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><td style="padding:7px 14px 7px 30px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#3a4150;white-space:nowrap;position:sticky;left:0;background:rgba(245,246,248,1);z-index:1"><span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">'+(g.kws.length?(gExp?'▼':'▶'):'')+'</span>'+gn+'</td>';
-      html+=tdS(fmtW(g.cost))+tdS(fmtW(g.rev))+tdS(fmtR(g.cost,g.rev))+tdS(fmtN(g.conv))+tdS(fmtC(g.cost,g.conv))+tdS(fmtN(g.click))+tdS(fmtN(g.impr))+'</tr>';
-      if (!gExp) return;
+    // 그룹 행
+    html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="kwToggleGrp(\''+safeKey+'\')">';
+    html += '<td style="padding:9px 14px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;font-weight:500;white-space:nowrap;position:sticky;left:0;background:var(--bg2);z-index:1">';
+    html += '<span style="display:inline-block;width:16px;font-size:9px;color:var(--muted)">'+(kwKeys.length?(gExp?'▼':'▶'):'')+'</span>';
+    // 캠페인 전체 선택 시 캠페인명도 표시
+    if (kwState.camp === 'all') html += '<span style="font-size:10px;color:var(--muted);margin-right:6px">'+g.camp+'</span>';
+    html += g.grp + '</td>';
+    COLS.forEach(function(c){ html += td(c.fmt(g)); });
+    html += '</tr>';
 
-      g.kws.slice().sort(function(a,b){ return b.cost-a.cost; }).forEach(function(k){
-        html+='<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.035)" onclick="event.stopPropagation()"><td style="padding:5px 14px 5px 50px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;white-space:nowrap;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ '+k.kw+'</td>';
-        html+=tdKw(fmtW(k.cost))+tdKw(fmtW(k.rev))+tdKw(fmtR(k.cost,k.rev))+tdKw(fmtN(k.conv))+tdKw(fmtC(k.cost,k.conv))+tdKw(fmtN(k.click))+tdKw(fmtN(k.impr))+'</tr>';
-      });
+    if (!gExp || !kwKeys.length) return;
+
+    // 키워드 행
+    kwKeys.sort(function(a,b){
+      var av=sortVal(g.kws[a],kwSort.key), bv=sortVal(g.kws[b],kwSort.key);
+      return kwSort.asc ? av-bv : bv-av;
+    }).forEach(function(kw){
+      var k = g.kws[kw];
+      html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,0.025)" onclick="event.stopPropagation()">';
+      html += '<td style="padding:5px 14px 5px 34px;font-family:\'Noto Sans KR\',sans-serif;font-size:11px;color:#4a5568;white-space:nowrap;position:sticky;left:0;background:rgba(240,241,244,1);z-index:1">◦ '+kw+'</td>';
+      COLS.forEach(function(c){ html += tdS(c.fmt(k)); });
+      html += '</tr>';
     });
   });
 
-  // 합계
-  if (camps.length>1) {
-    var tS='padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;border-top:2px solid var(--border2);background:var(--bg3)';
-    html+='<tr><td style="'+tS+';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:1">합계</td>';
-    html+='<td style="'+tS+'">'+fmtW(totC)+'</td><td style="'+tS+'">'+fmtW(totR)+'</td><td style="'+tS+'">'+fmtR(totC,totR)+'</td><td style="'+tS+'">'+fmtN(totN)+'</td><td style="'+tS+'">'+fmtC(totC,totN)+'</td><td style="'+tS+'">'+fmtN(totCl)+'</td><td style="'+tS+'">'+fmtN(totIm)+'</td></tr>';
+  // 합계 행
+  if (grpList.length > 1) {
+    var tS = 'padding:10px 14px;text-align:right;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;border-top:2px solid var(--border2);background:var(--bg3)';
+    html += '<tr><td style="'+tS+';text-align:left;position:sticky;left:0;background:var(--bg3);z-index:1">합계</td>';
+    COLS.forEach(function(c){ html += '<td style="'+tS+'">'+c.fmt(totD)+'</td>'; });
+    html += '</tr>';
   }
-  document.getElementById('kwTableBody').innerHTML = html;
+
+  document.getElementById('kwTableBody').innerHTML = html || '<tr><td colspan="'+(COLS.length+1)+'" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">데이터가 없어요</td></tr>';
 }
 
-function kwToggleCamp(key) { kwExpCamp[key]=!kwExpCamp[key]; renderKwTable(); }
-function kwToggleGrp(key)  { kwExpGrp[key] =!kwExpGrp[key];  renderKwTable(); }
+function kwToggleGrp(key) { kwExpGrp[key] = !kwExpGrp[key]; renderKwTable(); }
 
 buildMetricSelector();
 buildColDropdown();
