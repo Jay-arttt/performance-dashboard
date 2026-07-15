@@ -2461,7 +2461,7 @@ function renderDailyTable(ck) {
     total.app_installs += s.app_installs;
 
     var dCalc = calc(s);
-    var isMemoEligible = (dailyGranularity === 'day') && brandKeys().indexOf('minoxell') !== -1 && S.brand === 'minoxell';
+    var isMemoEligible = (dailyGranularity === 'day') && (S.brand === 'minoxell' || S.brand === 'skechers');
     var dateKey = bucket.keys[0];
     var dateCellHtml = bucket.label;
     if (isMemoEligible) {
