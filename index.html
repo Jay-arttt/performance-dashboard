@@ -2381,6 +2381,13 @@ function buildColDropdown() {
   document.getElementById('colCount').textContent = '(' + visibleCount + ')';
 }
 
+// 메모 브랜드 키 결정 (null이면 메모 비활성화)
+function getMemoBrandKey() {
+  if (S.brand === 'minoxell') return 'minoxell'; // 마이녹셀 + 올리브영 통합
+  if (S.brand === 'skechers') return 'skechers'; // 공식몰 + 앱 통합
+  return null;
+}
+
 // 일자별 데이터 테이블 (매체별 데이터와 동일 컬럼, 날짜를 행으로)
 function getDailyEffectiveCols() {
   var brand = getActiveBrand();
@@ -2461,8 +2468,8 @@ function renderDailyTable(ck) {
     total.app_installs += s.app_installs;
 
     var dCalc = calc(s);
-    var isMemoEligible = (dailyGranularity === 'day') && (S.brand === 'minoxell' || S.brand === 'skechers');
-    var dateKey = bucket.keys[0];
+    var isMemoEligible = (dailyGranularity === 'day') && !!getMemoBrandKey();
+    var dateKey = getMemoBrandKey() ? (getMemoBrandKey() + '_' + bucket.keys[0]) : bucket.keys[0];
     var dateCellHtml = bucket.label;
     if (isMemoEligible) {
       var memos = dailyMemos[dateKey] || [];
