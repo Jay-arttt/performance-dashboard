@@ -628,7 +628,7 @@ function aggregateMinoxellGoogleHierarchy(rows, dateFrom, dateTo) {
     var target = isOlive ? oliveyoung : minoxell;
     addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
       cleanNum(r['총비용(vat-)']), cleanNum(r['노출수']), cleanNum(r['클릭수']),
-      cleanNum(r['구매완료 전환수']), cleanNum(r['구매완료 매출액']));
+      cleanNum(r['전환수']), cleanNum(r['전환 가치']));
   }
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
@@ -790,8 +790,8 @@ function aggregateMinoxellGoogleCampaign(rows, dateFrom, dateTo) {
     var camp = r['캠페인명'] || '(미분류)';
     addToCampaign(target, camp, dateStr, dateFrom, dateTo,
       cleanNum(r['총비용(vat-)']), cleanNum(r['노출수']),
-      cleanNum(r['클릭수']), cleanNum(r['구매완료 전환수']),
-      cleanNum(r['구매완료 매출액']));
+      cleanNum(r['클릭수']), cleanNum(r['전환수']),
+      cleanNum(r['전환 가치']));
   }
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
@@ -1221,8 +1221,8 @@ function aggregateMinoxellGoogle(rows) {
     target[dateStr].cost        += cleanNum(r['총비용(vat-)']);
     target[dateStr].impressions += cleanNum(r['노출수']);
     target[dateStr].clicks      += cleanNum(r['클릭수']);
-    target[dateStr].conversions += cleanNum(r['구매완료 전환수']);
-    target[dateStr].revenue     += cleanNum(r['구매완료 매출액']);
+    target[dateStr].conversions += cleanNum(r['전환수']);
+    target[dateStr].revenue     += cleanNum(r['전환 가치']);
   }
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
