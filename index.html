@@ -617,14 +617,14 @@ function aggregateGFAHierarchy(rows, dateFrom, dateTo) {
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
-// 마이녹셀 Google 계층 집계 (마이녹셀/올리브영 분리, 광고그룹명 기준)
+// 마이녹셀 Google 계층 집계 (마이녹셀/올리브영 분리, 캠페인명 기준)
 function aggregateMinoxellGoogleHierarchy(rows, dateFrom, dateTo) {
   var minoxell = {}, oliveyoung = {};
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     var dateStr = (r['일자'] || '').slice(0, 10);
     if (!dateStr) continue;
-    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var isOlive = (r['캠페인명'] || '').indexOf('올리브영') !== -1;
     var target = isOlive ? oliveyoung : minoxell;
     addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
       cleanNum(r['총비용(vat-)']), cleanNum(r['노출수']), cleanNum(r['클릭수']),
@@ -778,14 +778,14 @@ function aggregateGFACampaign(rows, dateFrom, dateTo) {
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
-// 마이녹셀 Google → 캠페인별 {minoxell:{}, oliveyoung:{}}
+// 마이녹셀 Google → 캠페인별 {minoxell:{}, oliveyoung:{}} (캠페인명 기준 분리)
 function aggregateMinoxellGoogleCampaign(rows, dateFrom, dateTo) {
   var minoxell = {}, oliveyoung = {};
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     var dateStr = (r['일자'] || '').slice(0, 10);
     if (!dateStr) continue;
-    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var isOlive = (r['캠페인명'] || '').indexOf('올리브영') !== -1;
     var target = isOlive ? oliveyoung : minoxell;
     var camp = r['캠페인명'] || '(미분류)';
     addToCampaign(target, camp, dateStr, dateFrom, dateTo,
@@ -1204,7 +1204,7 @@ function aggregateGFA(rows) {
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
-// 마이녹셀 Google 전용: 일자 컬럼, 광고그룹명에 '올리브영' 포함 시 oliveyoung으로 분리
+// 마이녹셀 Google 전용: 캠페인명에 '올리브영' 포함 시 oliveyoung, 아니면 minoxell로 분리
 function aggregateMinoxellGoogle(rows) {
   var minoxell = {};
   var oliveyoung = {};
@@ -1214,7 +1214,7 @@ function aggregateMinoxellGoogle(rows) {
     var dateStr = r['일자'] ? r['일자'].slice(0, 10) : '';
     if (!dateStr) continue;
 
-    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var isOlive = (r['캠페인명'] || '').indexOf('올리브영') !== -1;
     var target = isOlive ? oliveyoung : minoxell;
 
     if (!target[dateStr]) target[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
