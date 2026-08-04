@@ -493,7 +493,8 @@ var CSV_URLS_MINOXELL = {
   nsa:          'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=688098510&single=true&output=csv',
   meta:         'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1964641815&single=true&output=csv',
   ngfa:         'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1678752996&single=true&output=csv',
-  oliveyoung_meta: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1885821185&single=true&output=csv'
+  oliveyoung_meta: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1885821185&single=true&output=csv',
+  google:       'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=388280958&single=true&output=csv'
 };
 
 var CSV_URLS_HYPER = {
@@ -506,6 +507,11 @@ var sheetsCache = {};
 function showLoading(on) {
   var el = document.getElementById('loadingBanner');
   if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+// 콤마 포함 숫자 문자열 안전 파싱
+function cleanNum(v) {
+  return Number(String(v == null ? '' : v).replace(/,/g, '')) || 0;
 }
 
 // ── 캠페인별 집계 ────────────────────────────────────────────────────────────
@@ -611,6 +617,22 @@ function aggregateGFAHierarchy(rows, dateFrom, dateTo) {
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
+// 마이녹셀 Google 계층 집계 (마이녹셀/올리브영 분리, 광고그룹명 기준)
+function aggregateMinoxellGoogleHierarchy(rows, dateFrom, dateTo) {
+  var minoxell = {}, oliveyoung = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+    addToHierarchy(target, r['캠페인명']||'(미분류)', r['광고그룹명']||'', null, dateStr, dateFrom, dateTo,
+      cleanNum(r['총비용(vat-)']), cleanNum(r['노출수']), cleanNum(r['클릭수']),
+      cleanNum(r['구매완료 전환수']), cleanNum(r['구매완료 매출액']));
+  }
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
+}
+
 // 하이퍼 NSA 계층
 function aggregateHyperNSAHierarchy(rows, dateFrom, dateTo) {
   var out = {};
@@ -680,13 +702,16 @@ function getCampaignHierarchy(brKey, chKey, dateFrom, dateTo) {
     var metaHM  = aggregateGenericHierarchy(pm._rawMeta   || [], dateFrom, dateTo, '광고소재');
     var oyMetaHM = aggregateGenericHierarchy(pm._rawOYMeta || [], dateFrom, dateTo, '광고소재');
     var gfaHM   = aggregateGFAHierarchy(pm._rawNGFA || [], dateFrom, dateTo);
+    var googHM  = aggregateMinoxellGoogleHierarchy(pm._rawGoogle || [], dateFrom, dateTo);
     if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaHM.nsa;
     if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaHM.nbsa;
     if (brKey === 'minoxell'   && chKey === 'nnsa') result = nsaHM.nnsa;
     if (brKey === 'minoxell'   && chKey === 'meta') result = metaHM;
     if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaHM.minoxell;
+    if (brKey === 'minoxell'   && chKey === 'google') result = googHM.minoxell;
     if (brKey === 'oliveyoung' && chKey === 'meta') result = oyMetaHM;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaHM.oliveyoung;
+    if (brKey === 'oliveyoung' && chKey === 'google') result = googHM.oliveyoung;
   } else if (sheetsCache.hyper) {
     var ph = sheetsCache.hyper;
     var nsaHH  = aggregateHyperNSAHierarchy(ph._rawNSA || [], dateFrom, dateTo);
@@ -749,6 +774,24 @@ function aggregateGFACampaign(rows, dateFrom, dateTo) {
       Number((r['클릭수'] || '').replace(/,/g,'')) || 0,
       Number((r['구매완료 전환수'] || '').replace(/,/g,'')) || 0,
       Number((r['구매완료 매출액'] || '').replace(/,/g,'')) || 0);
+  }
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
+}
+
+// 마이녹셀 Google → 캠페인별 {minoxell:{}, oliveyoung:{}}
+function aggregateMinoxellGoogleCampaign(rows, dateFrom, dateTo) {
+  var minoxell = {}, oliveyoung = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = (r['일자'] || '').slice(0, 10);
+    if (!dateStr) continue;
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+    var camp = r['캠페인명'] || '(미분류)';
+    addToCampaign(target, camp, dateStr, dateFrom, dateTo,
+      cleanNum(r['총비용(vat-)']), cleanNum(r['노출수']),
+      cleanNum(r['클릭수']), cleanNum(r['구매완료 전환수']),
+      cleanNum(r['구매완료 매출액']));
   }
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
@@ -829,11 +872,14 @@ function getCampaignData(brKey, chKey, dateFrom, dateTo) {
     var nsaCampM  = aggregateNSACampaign(pm._rawNSA || [], dateFrom, dateTo);
     var metaCampM = aggregateGenericCampaign(pm._rawMeta || [], dateFrom, dateTo);
     var gfaCampM  = aggregateGFACampaign(pm._rawNGFA || [], dateFrom, dateTo);
+    var googCampM = aggregateMinoxellGoogleCampaign(pm._rawGoogle || [], dateFrom, dateTo);
     if (brKey === 'minoxell'   && chKey === 'nsa')  result = nsaCampM.nsa;
     if (brKey === 'minoxell'   && chKey === 'nbsa') result = nsaCampM.nbsa;
     if (brKey === 'minoxell'   && chKey === 'meta') result = metaCampM;
     if (brKey === 'minoxell'   && chKey === 'ngfa') result = gfaCampM.minoxell;
+    if (brKey === 'minoxell'   && chKey === 'google') result = googCampM.minoxell;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') result = gfaCampM.oliveyoung;
+    if (brKey === 'oliveyoung' && chKey === 'google') result = googCampM.oliveyoung;
   } else if (sheetsCache.hyper) {
     var ph = sheetsCache.hyper;
     var nsaCampH  = aggregateHyperNSACampaign(ph._rawNSA || [], dateFrom, dateTo);
@@ -1158,6 +1204,29 @@ function aggregateGFA(rows) {
   return {minoxell: minoxell, oliveyoung: oliveyoung};
 }
 
+// 마이녹셀 Google 전용: 일자 컬럼, 광고그룹명에 '올리브영' 포함 시 oliveyoung으로 분리
+function aggregateMinoxellGoogle(rows) {
+  var minoxell = {};
+  var oliveyoung = {};
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var dateStr = r['일자'] ? r['일자'].slice(0, 10) : '';
+    if (!dateStr) continue;
+
+    var isOlive = (r['광고그룹명'] || '').indexOf('올리브영') !== -1;
+    var target = isOlive ? oliveyoung : minoxell;
+
+    if (!target[dateStr]) target[dateStr] = {date:dateStr, cost:0, impressions:0, clicks:0, conversions:0, revenue:0};
+    target[dateStr].cost        += cleanNum(r['총비용(vat-)']);
+    target[dateStr].impressions += cleanNum(r['노출수']);
+    target[dateStr].clicks      += cleanNum(r['클릭수']);
+    target[dateStr].conversions += cleanNum(r['구매완료 전환수']);
+    target[dateStr].revenue     += cleanNum(r['구매완료 매출액']);
+  }
+  return {minoxell: minoxell, oliveyoung: oliveyoung};
+}
+
 function loadMinoxell(callback) {
   if (sheetsCache.minoxell) { callback(sheetsCache.minoxell); return; }
   showLoading(true);
@@ -1166,15 +1235,18 @@ function loadMinoxell(callback) {
     fetch(CSV_URLS_MINOXELL.nsa).then(function(r){ return r.text(); }),
     fetch(CSV_URLS_MINOXELL.meta).then(function(r){ return r.text(); }),
     fetch(CSV_URLS_MINOXELL.ngfa).then(function(r){ return r.text(); }),
-    fetch(CSV_URLS_MINOXELL.oliveyoung_meta).then(function(r){ return r.text(); })
+    fetch(CSV_URLS_MINOXELL.oliveyoung_meta).then(function(r){ return r.text(); }),
+    fetch(CSV_URLS_MINOXELL.google).then(function(r){ return r.text(); })
   ])
   .then(function(results) {
     var nsaRows2        = parseCSV(results[0]);
     var metaRows2       = parseCSV(results[1]);
     var ngfaRows2       = parseCSV(results[2]);
     var oyMetaRows      = parseCSV(results[3]);
+    var googleRows2     = parseCSV(results[4]);
     var nsaResult2      = aggregateNSA(nsaRows2);
     var gfaResult       = aggregateGFA(ngfaRows2);
+    var googleResult    = aggregateMinoxellGoogle(googleRows2);
     var parsed = {
       nsa:              nsaResult2.nsa,
       nbsa:             nsaResult2.nbsa,
@@ -1183,10 +1255,13 @@ function loadMinoxell(callback) {
       ngfa:             gfaResult.minoxell,
       oliveyoung_ngfa:  gfaResult.oliveyoung,
       oliveyoung_meta:  aggregateGeneric(oyMetaRows),
+      google:           googleResult.minoxell,
+      oliveyoung_google: googleResult.oliveyoung,
       _rawNSA:          nsaRows2,
       _rawMeta:         metaRows2,
       _rawNGFA:         ngfaRows2,
-      _rawOYMeta:       oyMetaRows
+      _rawOYMeta:       oyMetaRows,
+      _rawGoogle:       googleRows2
     };
     sheetsCache.minoxell = parsed;
     showLoading(false);
@@ -1226,22 +1301,26 @@ function applyMinoxell(apiData, dateFrom, dateTo) {
     nsa:    sumByDateRange(apiData.nsa,         dateFrom, dateTo),
     nbsa:   sumByDateRange(apiData.nbsa  || {}, dateFrom, dateTo),
     nnsa:   sumByDateRange(apiData.nnsa  || {}, dateFrom, dateTo),
-    ngfa:   sumByDateRange(apiData.ngfa,        dateFrom, dateTo)
+    ngfa:   sumByDateRange(apiData.ngfa,        dateFrom, dateTo),
+    google: sumByDateRange(apiData.google || {}, dateFrom, dateTo)
   };
   RAW.oliveyoung = {
     meta:   sumByDateRange(apiData.oliveyoung_meta || {}, dateFrom, dateTo),
-    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo)
+    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, dateFrom, dateTo),
+    google: sumByDateRange(apiData.oliveyoung_google || {}, dateFrom, dateTo)
   };
   PREV.minoxell = {
     meta:   sumByDateRange(apiData.meta,        prevRange.from, prevRange.to),
     nsa:    sumByDateRange(apiData.nsa,         prevRange.from, prevRange.to),
     nbsa:   sumByDateRange(apiData.nbsa  || {}, prevRange.from, prevRange.to),
     nnsa:   sumByDateRange(apiData.nnsa  || {}, prevRange.from, prevRange.to),
-    ngfa:   sumByDateRange(apiData.ngfa,        prevRange.from, prevRange.to)
+    ngfa:   sumByDateRange(apiData.ngfa,        prevRange.from, prevRange.to),
+    google: sumByDateRange(apiData.google || {}, prevRange.from, prevRange.to)
   };
   PREV.oliveyoung = {
     meta:   sumByDateRange(apiData.oliveyoung_meta || {}, prevRange.from, prevRange.to),
-    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to)
+    ngfa:   sumByDateRange(apiData.oliveyoung_ngfa, prevRange.from, prevRange.to),
+    google: sumByDateRange(apiData.oliveyoung_google || {}, prevRange.from, prevRange.to)
   };
 }
 
@@ -1400,8 +1479,10 @@ function getDayData(brKey, chKey, dateStr) {
     if (brKey === 'minoxell' && chKey === 'nnsa') byDateM = pm.nnsa;
     if (brKey === 'minoxell' && chKey === 'meta') byDateM = pm.meta;
     if (brKey === 'minoxell' && chKey === 'ngfa') byDateM = pm.ngfa;
+    if (brKey === 'minoxell' && chKey === 'google') byDateM = pm.google;
     if (brKey === 'oliveyoung' && chKey === 'ngfa') byDateM = pm.oliveyoung_ngfa;
     if (brKey === 'oliveyoung' && chKey === 'meta') byDateM = pm.oliveyoung_meta;
+    if (brKey === 'oliveyoung' && chKey === 'google') byDateM = pm.oliveyoung_google;
     if (byDateM && byDateM[dateStr]) return byDateM[dateStr];
     if (byDateM) return empty;
   }
@@ -3616,8 +3697,12 @@ var BUDGET_BRAND_MAP = [
   {brand:'마이녹셀',  sub:'',          ch:'N.NSA', key:'minoxell__nnsa'},
   {brand:'마이녹셀',  sub:'',          ch:'N.GFA', key:'minoxell__ngfa'},
   {brand:'마이녹셀',  sub:'',          ch:'Meta',  key:'minoxell__meta'},
+  {brand:'마이녹셀',  sub:'',          ch:'Google',key:'minoxell__google'},
+  {brand:'마이녹셀',  sub:'',          ch:'Kakao', key:'minoxell__kakao'},
   {brand:'마이녹셀',  sub:'올리브영',  ch:'Meta',  key:'oliveyoung__meta'},
   {brand:'마이녹셀',  sub:'올리브영',  ch:'N.GFA', key:'oliveyoung__ngfa'},
+  {brand:'마이녹셀',  sub:'올리브영',  ch:'Google',key:'oliveyoung__google'},
+  {brand:'마이녹셀',  sub:'올리브영',  ch:'Kakao', key:'oliveyoung__kakao'},
   {brand:'하이퍼',    sub:'키친에이드',ch:'N.BSA', key:'kitchenaid__nbsa'},
   {brand:'하이퍼',    sub:'키친에이드',ch:'N.SA',  key:'kitchenaid__nsa'},
   {brand:'하이퍼',    sub:'키친에이드(코드리스)',ch:'N.SA', key:'kitchenaid_codeless__nsa'},
@@ -3814,8 +3899,8 @@ function _renderBudgetBars(ym, budgets) {
         { label:'앱',     key:'skechers_app',      chs:['kakao','google'] }
       ]},
       { brand:'마이녹셀', subs:[
-        { label:'마이녹셀', key:'minoxell',    chs:['meta','nbsa','nsa','nnsa','ngfa'] },
-        { label:'올리브영', key:'oliveyoung',  chs:['meta','ngfa'] }
+        { label:'마이녹셀', key:'minoxell',    chs:['meta','nbsa','nsa','nnsa','ngfa','google','kakao'] },
+        { label:'올리브영', key:'oliveyoung',  chs:['meta','ngfa','google','kakao'] }
       ]},
       { brand:'커리어벗', subs:[
         { label:'', key:'careerbud', chs:['meta','nbsa','google'] }
@@ -3877,8 +3962,10 @@ function _renderBudgetBars(ym, budgets) {
             if (sub.key === 'minoxell'   && chKey === 'nnsa') byDateMap3 = pm2.nnsa;
             if (sub.key === 'minoxell'   && chKey === 'meta') byDateMap3 = pm2.meta;
             if (sub.key === 'minoxell'   && chKey === 'ngfa') byDateMap3 = pm2.ngfa;
+            if (sub.key === 'minoxell'   && chKey === 'google') byDateMap3 = pm2.google;
             if (sub.key === 'oliveyoung' && chKey === 'ngfa') byDateMap3 = pm2.oliveyoung_ngfa;
             if (sub.key === 'oliveyoung' && chKey === 'meta') byDateMap3 = pm2.oliveyoung_meta;
+            if (sub.key === 'oliveyoung' && chKey === 'google') byDateMap3 = pm2.oliveyoung_google;
             spent = sumByDateRange(byDateMap3 || {}, budgetDateFrom, budgetDateTo).cost || 0;
           } else if (sheetsCache.hyper) {
             var hyperKey = sub.key + '__' + chKey;
